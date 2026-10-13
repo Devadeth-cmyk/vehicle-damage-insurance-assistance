@@ -4,7 +4,6 @@ import {
   Car,
   FilePlus2,
   FileText,
-  FolderOpen,
   MessageSquare,
   User,
   LogOut,
@@ -35,7 +34,13 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'bot'; text: string; sources?: string[] }>([
+  interface ChatMessage {
+    sender: 'user' | 'bot';
+    text: string;
+    sources?: string[];
+  }
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       sender: 'bot',
       text: 'Hello! I am AutoInsight Assistant. Ask me questions regarding policy coverage, deductibles, required documents, or claim status.',
@@ -48,7 +53,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
     { label: 'My Vehicles', route: '/vehicles', icon: Car },
     { label: 'New Claim', route: '/claims/new', icon: FilePlus2 },
     { label: 'My Claims', route: '/claims', icon: FileText },
-    { label: 'Documents', route: '/documents', icon: FolderOpen },
+    { label: 'Assessment Results', route: '/assessment', icon: Sparkles },
     { label: 'Insurance Assistant', route: '/assistant', icon: MessageSquare },
     { label: 'Profile', route: '/profile', icon: User }
   ];
@@ -141,7 +146,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentRoute === item.route || (item.route !== '/dashboard' && currentRoute.startsWith(item.route));
+            const isActive = currentRoute === item.route;
             return (
               <button
                 key={item.route}
@@ -268,13 +273,13 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
         </header>
 
         {/* MAIN BODY CONTENT */}
-        <main style={{ flex: 1, padding: '2rem', maxWidth: '1280px', width: '100%', margin: '0 auto' }}>
+        <main className="customer-content" style={{ flex: 1, padding: '2rem', maxWidth: '1280px', width: '100%', margin: '0 auto' }}>
           {children}
         </main>
       </div>
 
       {/* PERSISTENT FLOATING RAG CHATBOT BUTTON */}
-      <button
+      {currentRoute !== '/assistant' && <button
         onClick={() => setIsChatbotOpen(!isChatbotOpen)}
         style={{
           position: 'fixed',
@@ -296,10 +301,10 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
         }}
       >
         <Sparkles size={18} /> 💬 Insurance Assistant
-      </button>
+      </button>}
 
       {/* FLOATING CHATBOT DRAWER / MODAL */}
-      {isChatbotOpen && (
+      {isChatbotOpen && currentRoute !== '/assistant' && (
         <div
           style={{
             position: 'fixed',

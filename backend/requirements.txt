@@ -1,0 +1,60 @@
+# ==============================
+# Backend
+# ==============================
+fastapi
+uvicorn[standard]
+
+# ==============================
+# Database
+# ==============================
+sqlalchemy
+alembic
+
+# ==============================
+# Configuration / Validation
+# ==============================
+pydantic
+pydantic-settings
+email-validator
+python-dotenv
+
+# ==============================
+# Authentication
+# ==============================
+python-jose[cryptography]
+bcrypt>=4.0
+
+# ==============================
+# File Uploads
+# ==============================
+python-multipart
+
+# ==============================
+# AI / Computer Vision
+# ==============================
+numpy
+pillow
+opencv-python
+
+# YOLO
+ultralytics
+
+# Deep Learning
+torch
+torchvision
+
+# ==============================
+# Claim Package / PDF
+# ==============================
+reportlab
+
+# ==============================
+# HTTP / API
+# ==============================
+httpx
+
+# ==============================
+# Testing
+# ==============================
+pytest
+pytest-asyncio

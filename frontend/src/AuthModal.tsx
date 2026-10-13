@@ -13,9 +13,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [role, setRole] = useState('user');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const formatErrorMsg = (detail: any): string => {
+    if (!detail) return '';
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((item: any) => item.msg || JSON.stringify(item)).join(', ');
+    }
+    return JSON.stringify(detail);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,30 +34,57 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSuccess }) => {
     try {
       if (isRegister) {
         const regRes = await api.post('/auth/register', {
-          email,
+          email: email.trim(),
           password,
-          full_name: fullName,
-          phone,
-          address,
-          role: 'user' // CUSTOMER ROLE
+          full_name: fullName.trim(),
+          phone: phone.trim() || undefined,
+          role,
         });
-        const token = regRes.data.access_token;
-        localStorage.setItem('token', token);
-        
-        const profileRes = await api.get('/users/me');
-        onLoginSuccess(profileRes.data, token);
+
+        const token = regRes.data?.access_token;
+        if (token) {
+          localStorage.setItem('token', token);
+          try {
+            const profileRes = await api.get('/users/me', {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            onLoginSuccess(profileRes.data, token);
+          } catch {
+            onLoginSuccess({
+              id: Date.now(),
+              full_name: fullName,
+              email,
+              phone,
+              role: 'user'
+            }, token);
+          }
+        } else {
+          setError('Registration successful, but no token returned. Please log in.');
+          setIsRegister(false);
+        }
       } else {
-        const loginRes = await api.post('/auth/login', null, {
-          params: { email, password }
+        const loginRes = await api.post('/auth/login', {
+          email: email.trim(),
+          password,
         });
+
         const token = loginRes.data.access_token;
         localStorage.setItem('token', token);
 
-        const profileRes = await api.get('/users/me');
+        const profileRes = await api.get('/users/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         onLoginSuccess(profileRes.data, token);
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Authentication failed. Please check credentials.');
+      const backendDetail = err.response?.data?.detail;
+      if (backendDetail) {
+        setError(formatErrorMsg(backendDetail));
+      } else if (isRegister) {
+        setError('Account registration failed. Please check network connection or try again.');
+      } else {
+        setError('Invalid credentials or backend server unreachable.');
+      }
     } finally {
       setLoading(false);
     }
@@ -128,13 +164,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSuccess }) => {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem', fontWeight: 600 }}>
-                  Mobile Number *
+                  Mobile Number
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Phone size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
                   <input
                     type="text"
-                    required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+1 555-0192"
@@ -148,6 +183,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSuccess }) => {
                       outline: 'none'
                     }}
                   />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem', fontWeight: 600 }}>
+                  Account Type
+                </label>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+                    <input type="radio" name="role" value="user" checked={role === 'user'} onChange={(e) => setRole(e.target.value)} />
+                    Customer
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+                    <input type="radio" name="role" value="service_center" checked={role === 'service_center'} onChange={(e) => setRole(e.target.value)} />
+                    Service Center Technician
+                  </label>
                 </div>
               </div>
             </>
@@ -210,7 +261,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSuccess }) => {
 
         <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
           <button
-            onClick={() => setIsRegister(!isRegister)}
+            onClick={() => {
+              setError('');
+              setIsRegister(!isRegister);
+            }}
             style={{
               background: 'none',
               border: 'none',

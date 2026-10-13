@@ -66,6 +66,41 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Customer pages use light cards, so keep headings and form controls legible
+   even in components that still carry inline styles from the former dark theme. */
+.customer-content h1,
+.customer-content h2,
+.customer-content h3,
+.customer-content h4 {
+  color: var(--text-primary) !important;
+}
+
+.customer-content label {
+  color: var(--text-secondary) !important;
+}
+
+.customer-content input,
+.customer-content select,
+.customer-content textarea {
+  background-color: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-highlight) !important;
+}
+
+.customer-content input:disabled,
+.customer-content select:disabled,
+.customer-content textarea:disabled {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  opacity: 1;
+}
+
+.customer-content input::placeholder,
+.customer-content textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: white;

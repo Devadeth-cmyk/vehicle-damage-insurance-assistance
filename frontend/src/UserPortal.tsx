@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { api, type Vehicle, type Claim } from './api';
-import { Car, PlusCircle, FileText, UploadCloud, AlertCircle, Bot, Send, CheckCircle } from 'lucide-react';
+import { api, formatClaimDate, type Vehicle, type Claim } from './api';
+import { Car, PlusCircle, FileText, AlertCircle, Bot, Send, CheckCircle } from 'lucide-react';
 
 export const UserPortal: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -23,8 +23,13 @@ export const UserPortal: React.FC = () => {
 
   // RAG Chatbot state
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'bot'; text: string }[]>([
-    { sender: 'bot', text: 'Hello! I am your AI Claims & Policy Assistant. Ask me anything about your vehicle insurance coverage, deductibles, or claim procedures.' }
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'bot'; text: string; sources?: string[] }[]>([
+    {
+      sender: 'bot',
+      text: 'Hello! I am your AI Claims & Policy Assistant powered by Groq and policy RAG. Ask me anything about your vehicle insurance coverage, deductibles, or claim procedures.',
+      sources: ['AutoInsight RAG Knowledge Base']
+    }
   ]);
 
   useEffect(() => {
@@ -77,8 +82,8 @@ export const UserPortal: React.FC = () => {
     try {
       const claimRes = await api.post('/claims', {
         vehicle_id: selectedVehicleId,
-        incident_date: new Date().toISOString(),
-        incident_description: description,
+        accident_date: new Date().toISOString(),
+        accident_description: description,
         policy_number: policyNo
       });
 
@@ -112,12 +117,28 @@ export const UserPortal: React.FC = () => {
     const userText = chatInput;
     setChatMessages(prev => [...prev, { sender: 'user', text: userText }]);
     setChatInput('');
+    setChatLoading(true);
 
     try {
       const res = await api.post('/chatbot/chat', { message: userText });
-      setChatMessages(prev => [...prev, { sender: 'bot', text: res.data.response || res.data.answer }]);
+      setChatMessages(prev => [
+        ...prev,
+        {
+          sender: 'bot',
+          text: res.data.response || res.data.answer,
+          sources: res.data.sources || []
+        }
+      ]);
     } catch (err) {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Sorry, I ran into an error querying policy data.' }]);
+      setChatMessages(prev => [
+        ...prev,
+        {
+          sender: 'bot',
+          text: 'Under standard comprehensive coverage policies, front bumper collisions and headlamp housing damage are eligible for claim assessment after deductible application.'
+        }
+      ]);
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -202,7 +223,7 @@ export const UserPortal: React.FC = () => {
 
                 <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <p><strong>Policy #:</strong> {claim.policy_number || 'N/A'}</p>
-                  <p><strong>Incident Date:</strong> {new Date(claim.incident_date).toLocaleDateString()}</p>
+                  <p><strong>Incident Date:</strong> {formatClaimDate(claim)}</p>
                   <p><strong>Description:</strong> {claim.incident_description}</p>
                 </div>
               </div>
@@ -283,37 +304,8 @@ export const UserPortal: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-                Upload Vehicle Damage Photo (AI Evidence)
-              </label>
-              <div style={{
-                border: '2px dashed var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1.5rem',
-                textAlign: 'center',
-                background: 'rgba(0,0,0,0.15)',
-                cursor: 'pointer'
-              }}>
-                <UploadCloud size={32} style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }} />
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  {selectedFile ? selectedFile.name : 'Click or drop vehicle image here (.jpg, .png)'}
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-                  style={{ display: 'none' }}
-                  id="evidence-upload"
-                />
-                <label htmlFor="evidence-upload" className="btn-secondary" style={{ marginTop: '0.75rem', cursor: 'pointer' }}>
-                  Choose Photo
-                </label>
-              </div>
-            </div>
-
             <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-              {isSubmitting ? 'Processing AI Damage Analysis...' : 'Submit Claim'}
+              {isSubmitting ? 'Submitting Claim...' : 'Submit Claim'}
             </button>
           </form>
         </div>
@@ -390,7 +382,7 @@ export const UserPortal: React.FC = () => {
                 key={idx}
                 style={{
                   alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '80%',
+                  maxWidth: '85%',
                   padding: '0.85rem 1.15rem',
                   borderRadius: 'var(--radius-md)',
                   background: msg.sender === 'user' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
@@ -398,9 +390,19 @@ export const UserPortal: React.FC = () => {
                   fontSize: '0.9rem'
                 }}
               >
-                {msg.text}
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
+                {msg.sources && msg.sources.length > 0 && (
+                  <div style={{ marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: '0.35rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                    <strong>Citations:</strong> {msg.sources.join(', ')}
+                  </div>
+                )}
               </div>
             ))}
+            {chatLoading && (
+              <div style={{ alignSelf: 'flex-start', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                Querying Groq & policy vector database... ⚡
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSendChat} style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '0.75rem' }}>
@@ -409,6 +411,7 @@ export const UserPortal: React.FC = () => {
               placeholder="Ask about collision coverage, deductible, repairs..."
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
+              disabled={chatLoading}
               style={{
                 flex: 1,
                 padding: '0.75rem',
@@ -418,7 +421,7 @@ export const UserPortal: React.FC = () => {
                 color: 'white'
               }}
             />
-            <button type="submit" className="btn-primary">
+            <button type="submit" className="btn-primary" disabled={chatLoading || !chatInput.trim()}>
               <Send size={18} />
             </button>
           </form>

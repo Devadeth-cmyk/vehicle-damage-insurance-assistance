@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { FileCheck2, Plus, ArrowRight, UploadCloud, CheckCircle2 } from 'lucide-react';
-import { api, type Claim, type Vehicle } from './api';
+import { FileCheck2, Plus, CheckCircle2 } from 'lucide-react';
+import { api, formatClaimDate, type Claim, type Vehicle } from './api';
 
 interface ClaimsModuleProps {
   claims: Claim[];
@@ -18,9 +18,9 @@ export const ClaimsModule: React.FC<ClaimsModuleProps> = ({
   isCreateMode = false
 }) => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<number>(vehicles[0]?.id || 0);
-  const [policyNo, setPolicyNo] = useState('POL-998877');
+  const [policyNo, setPolicyNo] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedDoc, setSelectedDoc] = useState<File | null>(null);
+  const [selectedDoc] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
 
@@ -31,8 +31,8 @@ export const ClaimsModule: React.FC<ClaimsModuleProps> = ({
     try {
       const claimRes = await api.post('/claims', {
         vehicle_id: selectedVehicleId,
-        incident_date: new Date().toISOString(),
-        incident_description: description,
+        accident_date: new Date().toISOString(),
+        accident_description: description,
         policy_number: policyNo
       });
 
@@ -117,16 +117,6 @@ export const ClaimsModule: React.FC<ClaimsModuleProps> = ({
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Supporting Document (Driving License, Policy, FIR)</label>
-            <div style={{ border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1.5rem', textAlign: 'center', background: 'rgba(0,0,0,0.2)' }}>
-              <UploadCloud size={32} style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }} />
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{selectedDoc ? selectedDoc.name : 'Click to attach supporting document PDF/JPG'}</p>
-              <input type="file" onChange={(e) => e.target.files && setSelectedDoc(e.target.files[0])} id="doc-upload" style={{ display: 'none' }} />
-              <label htmlFor="doc-upload" className="btn-secondary" style={{ marginTop: '0.5rem', cursor: 'pointer' }}>Choose File</label>
-            </div>
-          </div>
-
           <button type="submit" className="btn-primary" disabled={loading} style={{ justifyContent: 'center', padding: '0.85rem', marginTop: '0.5rem' }}>
             {loading ? 'Submitting Claim...' : 'Submit Claim'}
           </button>
@@ -157,30 +147,38 @@ export const ClaimsModule: React.FC<ClaimsModuleProps> = ({
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
           {claims.map((c) => (
-            <div key={c.claim_id} className="glass-panel glass-panel-hover" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div
+              key={c.claim_id}
+              className="glass-panel glass-panel-hover"
+              role="button"
+              tabIndex={0}
+              aria-label={`View details for claim ${c.claim_id}`}
+              onClick={() => onNavigate(`/claims/${c.claim_id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onNavigate(`/claims/${c.claim_id}`);
+                }
+              }}
+              style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left', color: '#0f172a', background: '#ffffff', border: '1px solid var(--border-color)' }}
+            >
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>CLAIM REFERENCE</span>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'white' }}>{c.claim_id}</h4>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{c.claim_id}</h4>
                   </div>
                   <span className={`badge ${c.status.toLowerCase().includes('completed') ? 'badge-success' : 'badge-info'}`}>
                     {c.status}
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem' }}>
-                  <p><strong>Policy #:</strong> {c.policy_number || 'POL-998877'}</p>
-                  <p><strong>Incident Date:</strong> {new Date(c.incident_date).toLocaleDateString()}</p>
-                  <p><strong>Description:</strong> {c.incident_description}</p>
+                <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem' }}>
+                  <p><strong>Policy #:</strong> {c.policy_number || 'Not provided'}</p>
+                  <p><strong>Incident Date:</strong> {formatClaimDate(c)}</p>
+                  <p><strong>Description:</strong> {c.accident_description || c.incident_description || 'No description provided.'}</p>
                 </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>AI Estimate: <strong>$937.50</strong></span>
-                <button onClick={() => onNavigate('/user/service-centers')} className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
-                  Assign Workshop <ArrowRight size={14} />
-                </button>
+                <p style={{ color: '#0284c7', fontSize: '0.85rem', fontWeight: 700 }}>View full claim details →</p>
               </div>
             </div>
           ))}

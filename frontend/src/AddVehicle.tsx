@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from './api';
-import { Car, Shield, FileText, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Car, FileText, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 interface AddVehicleProps {
   onNavigate: (route: string) => void;
@@ -27,14 +27,8 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
   const [engineNo, setEngineNo] = useState('');
 
   const [regDate] = useState('2023-05-10');
-  const [regState, setRegState] = useState('California');
-  const [rto, setRto] = useState('CA-01 West');
-
-  const [insuranceProvider, setInsuranceProvider] = useState('State Auto Insurance');
-  const [policyNo, setPolicyNo] = useState('POL-887766');
-  const [policyType, setPolicyType] = useState('Comprehensive Bumper-to-Bumper');
-  const [policyStart] = useState('2026-01-01');
-  const [policyExpiry, setPolicyExpiry] = useState('2027-01-01');
+  const [regState, setRegState] = useState('Kerala');
+  const [rto, setRto] = useState('KL-07 Ernakulam');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,18 +50,13 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
         engine_number: engineNo,
         registration_date: regDate,
         registration_state: regState,
-        rto,
-        insurance_provider: insuranceProvider,
-        policy_number: policyNo,
-        policy_type: policyType,
-        policy_start_date: policyStart,
-        policy_expiry_date: policyExpiry
+        rto
       });
 
       setSuccess(true);
       onVehicleAdded();
       setTimeout(() => {
-        onNavigate('/user/vehicles');
+        onNavigate('/vehicles');
       }, 1500);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to register vehicle. Check inputs.');
@@ -79,13 +68,13 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button onClick={() => onNavigate('/user/vehicles')} className="btn-secondary" style={{ padding: '0.5rem 0.85rem' }}>
+        <button onClick={() => onNavigate('/vehicles')} className="btn-secondary" style={{ padding: '0.5rem 0.85rem' }}>
           <ArrowLeft size={18} /> Back
         </button>
         <div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white' }}>Register New Vehicle</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Complete vehicle registration & insurance policy linking.
+            Complete your vehicle registration details.
           </p>
         </div>
       </div>
@@ -116,12 +105,12 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Vehicle Type</label>
-              <select value={vehicleType} onChange={e => setVehicleType(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }}>
-                <option value="Sedan" style={{ background: '#111827' }}>Sedan</option>
-                <option value="SUV" style={{ background: '#111827' }}>SUV</option>
-                <option value="Hatchback" style={{ background: '#111827' }}>Hatchback</option>
-                <option value="Coupe" style={{ background: '#111827' }}>Coupe</option>
-                <option value="Truck" style={{ background: '#111827' }}>Truck</option>
+              <select value={vehicleType} onChange={e => setVehicleType(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: '#0f172a', colorScheme: 'light' }}>
+                <option value="Sedan" style={{ background: '#ffffff', color: '#0f172a' }}>Sedan</option>
+                <option value="SUV" style={{ background: '#ffffff', color: '#0f172a' }}>SUV</option>
+                <option value="Hatchback" style={{ background: '#ffffff', color: '#0f172a' }}>Hatchback</option>
+                <option value="Coupe" style={{ background: '#ffffff', color: '#0f172a' }}>Coupe</option>
+                <option value="Truck" style={{ background: '#ffffff', color: '#0f172a' }}>Truck</option>
               </select>
             </div>
 
@@ -142,11 +131,11 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Fuel Type</label>
-              <select value={fuelType} onChange={e => setFuelType(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }}>
-                <option value="Petrol" style={{ background: '#111827' }}>Petrol</option>
-                <option value="Diesel" style={{ background: '#111827' }}>Diesel</option>
-                <option value="EV" style={{ background: '#111827' }}>Electric (EV)</option>
-                <option value="Hybrid" style={{ background: '#111827' }}>Hybrid</option>
+              <select value={fuelType} onChange={e => setFuelType(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: '#0f172a', colorScheme: 'light' }}>
+                <option value="Petrol" style={{ background: '#ffffff', color: '#0f172a' }}>Petrol</option>
+                <option value="Diesel" style={{ background: '#ffffff', color: '#0f172a' }}>Diesel</option>
+                <option value="EV" style={{ background: '#ffffff', color: '#0f172a' }}>Electric (EV)</option>
+                <option value="Hybrid" style={{ background: '#ffffff', color: '#0f172a' }}>Hybrid</option>
               </select>
             </div>
           </div>
@@ -176,34 +165,6 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>RTO Office</label>
               <input value={rto} onChange={e => setRto(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
-            </div>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'white', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Shield size={20} style={{ color: '#34d399' }} /> SECTION 3 — INSURANCE POLICY DETAILS
-          </h3>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Insurance Provider</label>
-              <input value={insuranceProvider} onChange={e => setInsuranceProvider(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Policy Number</label>
-              <input value={policyNo} onChange={e => setPolicyNo(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Policy Type</label>
-              <input value={policyType} onChange={e => setPolicyType(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Expiry Date</label>
-              <input type="date" value={policyExpiry} onChange={e => setPolicyExpiry(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
             </div>
           </div>
         </div>

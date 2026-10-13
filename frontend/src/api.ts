@@ -41,15 +41,66 @@ export interface Claim {
   claim_id: string;
   vehicle_id: number;
   status: string;
-  incident_date: string;
-  incident_description: string;
-  policy_number: string;
-  created_at: string;
-  evidence?: { file_name: string; file_path: string }[];
-  assessment?: any;
+  customer_address?: string | null;
+  accident_date?: string | null;
+  accident_time?: string | null;
+  accident_type?: string | null;
+  accident_location?: string | null;
+  accident_description?: string | null;
+  insurance_company?: string | null;
+  policy_type?: string | null;
+  policy_expiry?: string | null;
+  incident_date?: string | null;
+  incident_type?: string | null;
+  incident_location?: string | null;
+  incident_description?: string | null;
+  policy_number?: string | null;
+  created_at?: string | null;
+  evidence?: { file_name: string; file_path?: string; file_type?: string; uploaded_at?: string | null }[];
+  vehicle?: {
+    make: string;
+    model: string;
+    year?: number | null;
+    registration_number: string;
+    vin?: string | null;
+    engine_number?: string | null;
+  } | null;
+  assessment?: {
+    status: string;
+    damage_results?: Record<string, unknown> | null;
+    parts_results?: Record<string, unknown> | null;
+    severity_results?: Record<string, unknown> | null;
+    fusion_results?: Record<string, unknown> | null;
+    repair_results?: Record<string, unknown> | null;
+    total_estimated_cost?: number | null;
+    error_message?: string | null;
+  } | null;
   service_center_id?: number;
   service_center_name?: string;
 }
+
+export const getEvidenceDisplay = (fileName: string) => {
+  const documentTypes: Array<[RegExp, string]> = [
+    [/^Policy_Document_/i, 'Policy Document'],
+    [/^Registration_Certificate_RC_/i, 'Registration Certificate'],
+    [/^Driving_Licence_/i, 'Driving License'],
+  ];
+  const documentType = documentTypes.find(([prefix]) => prefix.test(fileName));
+  const originalName = documentType
+    ? fileName.replace(documentType[0], '')
+    : fileName;
+
+  return {
+    label: documentType?.[1] || 'Supporting Document',
+    fileName: originalName.replace(/_/g, ' '),
+  };
+};
+
+export const formatClaimDate = (claim: Claim): string => {
+  const value = claim.accident_date || claim.incident_date || claim.created_at;
+  if (!value || Number.isNaN(Date.parse(value))) return 'Not provided';
+  return new Date(value).toLocaleDateString();
+};
 
 export interface User {
   id: number;

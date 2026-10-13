@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { FolderOpen, FileText, UploadCloud, Eye, Download } from 'lucide-react';
+import { FileText, UploadCloud, Eye } from 'lucide-react';
 
 export const DocumentsPage: React.FC = () => {
-  const [docs, setDocs] = useState([
+  const [docs] = useState([
     { id: 1, name: 'Motor_Policy_Comprehensive.pdf', claim: 'CLM-2026-0001', type: 'Insurance Policy', date: '2026-09-24', status: 'Verified' },
     { id: 2, name: 'Driving_License_Copy.jpg', claim: 'CLM-2026-0001', type: 'Driving License', date: '2026-09-24', status: 'Verified' },
     { id: 3, name: 'Vehicle_Registration_RC.pdf', claim: 'CLM-2026-0001', type: 'RC Document', date: '2026-09-24', status: 'Verified' }

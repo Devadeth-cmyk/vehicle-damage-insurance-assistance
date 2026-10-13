@@ -1,0 +1,99 @@
+# =========================
+# Python virtual environments
+# =========================
+venv/
+.venv/
+env/
+ENV/
+backend/vehicle/
+
+# =========================
+# Python cache and test artifacts
+# =========================
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+
+# =========================
+# Environment variables and secrets
+# =========================
+.env
+.env.*
+!.env.example
+!**/.env.example
+!*.env.*.example
+.streamlit/secrets.toml
+
+# =========================
+# Editors
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Frontend dependencies and build output
+# =========================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# =========================
+# Databases
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Logs and temporary files
+# =========================
+*.log
+*.tmp
+*.temp
+
+# =========================
+# Uploaded/generated files
+# =========================
+uploads/
+outputs/
+generated/
+temp/
+backend/storage/
+backend/debug_out/
+
+# =========================
+# ML weights and exported models
+# =========================
+*.pt
+*.pth
+*.h5
+*.keras
+*.onnx
+*.engine
+*.safetensors
+*.ckpt
+
+# =========================
+# Generated RAG data and local datasets
+# =========================
+/processed/
+datasets/
+data/
+
+# =========================
+# Python distribution
+# =========================
+*.egg-info/
+dist/
+build/
+
+# =========================
+# Local archives and packaged project snapshots
+# =========================
+*.zip

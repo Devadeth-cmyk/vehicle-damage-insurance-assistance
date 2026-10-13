@@ -1,6 +1,6 @@
 import React from 'react';
-import { Sparkles, Car, FileCheck2, FolderOpen, ArrowRight, ShieldCheck, Clock } from 'lucide-react';
-import type { Vehicle, Claim } from './api';
+import { Sparkles, Car, FileCheck2, ShieldCheck } from 'lucide-react';
+import { formatClaimDate, type Vehicle, type Claim } from './api';
 
 interface UserDashboardProps {
   user: any;
@@ -99,7 +99,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, vehicles, cl
                   {claims.slice(0, 5).map((claim) => (
                     <tr key={claim.claim_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '0.85rem 0.5rem', fontWeight: 700, color: '#0f172a' }}>{claim.claim_id}</td>
-                      <td style={{ padding: '0.85rem 0.5rem', color: '#475569' }}>{new Date(claim.incident_date).toLocaleDateString()}</td>
+                      <td style={{ padding: '0.85rem 0.5rem', color: '#475569' }}>{formatClaimDate(claim)}</td>
                       <td style={{ padding: '0.85rem 0.5rem' }}>
                         <span className={`badge ${claim.status.toLowerCase().includes('completed') ? 'badge-success' : 'badge-info'}`}>
                           {claim.status}
@@ -129,7 +129,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, vehicles, cl
               <Sparkles size={20} />
             </div>
             <h4 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '0.25rem' }}>File New Damage Claim</h4>
-            <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Start multi-step claim wizard with damage photo evidence upload.</p>
+            <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Start streamlined claim wizard for instant damage claim submission.</p>
           </div>
 
           <div className="glass-panel glass-panel-hover" onClick={() => onNavigate('/vehicles')} style={{ padding: '1.5rem', cursor: 'pointer', background: '#ffffff' }}>
@@ -140,15 +140,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ user, vehicles, cl
             <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Add or edit your registered policy vehicles & VIN info.</p>
           </div>
 
-          <div className="glass-panel glass-panel-hover" onClick={() => onNavigate('/documents')} style={{ padding: '1.5rem', cursor: 'pointer', background: '#ffffff' }}>
-            <div style={{ padding: '0.6rem', background: '#dcfce7', color: '#15803d', borderRadius: '10px', width: 'fit-content', marginBottom: '0.75rem' }}>
-              <FolderOpen size={20} />
-            </div>
-            <h4 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '0.25rem' }}>Supporting Documents</h4>
-            <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Upload driving licenses, policy docs, & police FIRs.</p>
           </div>
         </div>
       </div>
-    </div>
   );
 };

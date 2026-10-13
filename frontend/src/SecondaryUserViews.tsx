@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, CheckCircle2, Calendar, Bell, User as UserIcon, Shield, Save } from 'lucide-react';
-import type { User } from './api';
+import { api, type User } from './api';
 
 export const ServiceRequestsTracker: React.FC = () => {
   const steps = [
@@ -117,21 +117,40 @@ export const UserProfileView: React.FC<{ user: User }> = ({ user }) => {
   const [firstName, setFirstName] = React.useState(user.full_name.split(' ')[0] || '');
   const [lastName, setLastName] = React.useState(user.full_name.split(' ')[1] || '');
   const [email] = React.useState(user.email);
-  const [phone, setPhone] = React.useState(user.phone);
+  const [phone, setPhone] = React.useState(user.phone || '');
   const [dob, setDob] = React.useState('1992-04-15');
   const [gender, setGender] = React.useState('Male');
-  const [addr, setAddr] = React.useState('742 Evergreen Terrace');
-  const [city, setCity] = React.useState('Springfield');
-  const [state, setState] = React.useState('California');
-  const [pincode, setPincode] = React.useState('97477');
-  const [country, setCountry] = React.useState('United States');
+  const [addr, setAddr] = React.useState(user.address_line || '');
+  const [city, setCity] = React.useState(user.city || '');
+  const [state, setState] = React.useState(user.state || '');
+  const [pincode, setPincode] = React.useState(user.pincode || '');
+  const [country, setCountry] = React.useState(user.country || '');
 
   const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    setSaveError('');
+    try {
+      await api.patch('/users/me', {
+        full_name: `${firstName} ${lastName}`.trim(),
+        phone,
+        address_line: addr,
+        city,
+        state,
+        pincode,
+        country,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (error: any) {
+      setSaveError(error.response?.data?.detail || 'Could not save profile details. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -144,6 +163,11 @@ export const UserProfileView: React.FC<{ user: User }> = ({ user }) => {
       {saved && (
         <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.15)', color: '#34d399', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <CheckCircle2 size={18} /> Profile details saved successfully!
+        </div>
+      )}
+      {saveError && (
+        <div role="alert" style={{ padding: '1rem', background: 'rgba(239,68,68,0.15)', color: '#f87171', borderRadius: 'var(--radius-md)' }}>
+          {saveError}
         </div>
       )}
 
@@ -224,7 +248,7 @@ export const UserProfileView: React.FC<{ user: User }> = ({ user }) => {
         </div>
 
         <button type="submit" className="btn-primary" style={{ justifyContent: 'center', padding: '0.85rem' }}>
-          <Save size={18} /> Save Profile Changes
+          <Save size={18} /> {saving ? 'Saving…' : 'Save Profile Changes'}
         </button>
       </form>
     </div>
