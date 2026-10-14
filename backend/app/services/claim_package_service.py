@@ -422,7 +422,9 @@ def apply_technician_verification(
             )
 
             detection_id = (
-                f"{stem}_D{damage_id}"
+                finding.get("finding_id")
+                or finding.get("detection_id")
+                or f"{stem}_D{damage_id}"
             )
 
             finding[
@@ -901,12 +903,28 @@ def inspect_supporting_documents(
             }
         )
 
+    categories = {
+        "vehicle_registration": any(
+            any(token in item["file"].lower() for token in ("registration", "vehicle_rc", "_rc_"))
+            for item in details
+        ),
+        "driving_licence": any(
+            any(token in item["file"].lower() for token in ("driving_licence", "driving_license", "_licence", "_license"))
+            for item in details
+        ),
+        "policy_document": any(
+            any(token in item["file"].lower() for token in ("policy", "insurance"))
+            for item in details
+        ),
+    }
+
     return {
         "files": [
             item["file"]
             for item in details
         ],
         "file_details": details,
+        "detected_document_categories": categories,
         "note": (
             "Document presence and hashes are "
             "recorded. This service does not "
@@ -1769,6 +1787,10 @@ def compute_submission_status(
             f"Human-in-the-loop technician review is required: {note}"
             if note else "Human-in-the-loop technician review is required."
         )
+
+    for review in package.get("document_status", {}).get("review", {}).values():
+        if isinstance(review, dict) and review.get("note"):
+            open_items.append(str(review["note"]))
 
     repair_est = package.get("repair_estimate", {})
     if not repair_est.get("ai_preliminary_items") and not repair_est.get("workshop_items"):
