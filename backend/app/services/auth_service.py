@@ -1,9 +1,12 @@
 from fastapi import HTTPException, status
+import hashlib
+import hmac
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.models.user import User, UserRole
+from app.db.models.service_center import ServiceCenter
 from app.schemas.auth import LoginResponse, RegisterRequest
 
 
@@ -29,6 +32,20 @@ def register_user(db: Session, request: RegisterRequest) -> User:
             detail="Email is already registered",
         )
 
+    center = None
+    if request.portal == "service_center":
+        if request.service_center_id is None:
+            raise HTTPException(status_code=422, detail="Select the service-center organization for this account")
+        center = db.get(ServiceCenter, request.service_center_id)
+        if center is None or not center.is_active:
+            raise HTTPException(status_code=404, detail="Active service-center organization not found")
+        supplied_code = (request.service_center_code or "").strip()
+        supplied_hash = hashlib.sha256(supplied_code.encode("utf-8")).hexdigest()
+        if not center.join_code_hash or not hmac.compare_digest(center.join_code_hash, supplied_hash):
+            raise HTTPException(status_code=403, detail="A valid organization invitation code is required")
+    elif request.service_center_id is not None:
+        raise HTTPException(status_code=422, detail="Customer accounts cannot be linked to a service center")
+
     user = User(
         full_name=request.full_name,
         email=_normalize_email(request.email),
@@ -41,6 +58,7 @@ def register_user(db: Session, request: RegisterRequest) -> User:
             if request.portal == "service_center"
             else UserRole.USER
         ),
+        service_center_id=center.id if center else None,
     )
     db.add(user)
     db.commit()
@@ -71,10 +89,15 @@ def authenticate_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account is not authorized for the customer portal",
         )
-    if portal == "service_center" and user.role not in (UserRole.SERVICE_CENTER, UserRole.ADMIN):
+    if portal == "service_center" and user.role != UserRole.SERVICE_CENTER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account is not authorized for the service center portal",
+        )
+    if portal == "admin" and user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account is not authorized for the platform administration portal",
         )
 
     token = create_access_token(user.id, user.role.value)

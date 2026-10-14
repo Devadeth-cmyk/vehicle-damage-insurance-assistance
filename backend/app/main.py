@@ -62,7 +62,10 @@ ensure_columns("users", {
     "state": "VARCHAR(100)",
     "pincode": "VARCHAR(20)",
     "country": "VARCHAR(100)",
+    "service_center_id": "INTEGER",
 })
+ensure_columns("claims", {"service_center_id": "INTEGER"})
+ensure_columns("service_centers", {"join_code_hash": "VARCHAR(64)"})
 
 
 @asynccontextmanager

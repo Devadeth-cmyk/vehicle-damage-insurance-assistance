@@ -82,6 +82,17 @@ def is_authorized_for_claim(
     # Claim owner
     # --------------------------------------------------------
 
+    if current_user.role.value == "admin":
+        return True
+
+    if current_user.role.value == "service_center":
+        return (
+            current_user.service_center_id is not None
+            and current_user.service_center is not None
+            and current_user.service_center.is_active
+            and claim.service_center_id == current_user.service_center_id
+        )
+
     if claim.user_id == current_user.id:
         return True
 
@@ -436,12 +447,6 @@ def generate_digital_claim_package(
             detail="Claim not found",
         )
 
-    # Keep the claim lifecycle in sync with the successfully generated
-    # package so the customer timeline, service-center queue, and dashboard
-    # all reflect the same persisted state.
-    claim.status = ClaimStatus.PACKAGE_GENERATED
-    db.commit()
-
     # ========================================================
     # 2. AUTHORIZATION
     # ========================================================
@@ -472,6 +477,10 @@ def generate_digital_claim_package(
                 "Run the AI assessment first."
             ),
         )
+
+    # Persist the package state only after authorization and the existence of
+    # the required assessment have both been verified. The final status below
+    # is committed only after artifact generation succeeds.
 
     # ========================================================
     # 4. CHECK ASSESSMENT STATUS
@@ -1124,6 +1133,9 @@ def generate_digital_claim_package(
                 f"{exc}"
             ),
         )
+
+    claim.status = ClaimStatus.PACKAGE_GENERATED
+    db.commit()
 
     # ========================================================
     # 12. RETURN RESULT

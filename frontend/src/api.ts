@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
 
+export const VEHICLE_MAKES = ['Maruti Suzuki', 'Hyundai', 'Tata Motors', 'Mahindra', 'Toyota', 'Kia'] as const;
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
 });
@@ -108,6 +110,8 @@ export interface User {
   email: string;
   phone: string;
   role: 'user' | 'service_center' | 'admin' | 'adjuster';
+  service_center_id?: number | null;
+  service_center_name?: string | null;
   first_name?: string;
   last_name?: string;
   date_of_birth?: string;

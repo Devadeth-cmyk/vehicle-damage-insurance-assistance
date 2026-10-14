@@ -12,6 +12,15 @@ const getAuthHeaders = () => {
 };
 
 export const serviceCenterApi = {
+  getManagedCenters: async () => (await axios.get(`${API_BASE_URL}/service-centers`, getAuthHeaders())).data,
+  createCenter: async (data: { name: string; city?: string; state?: string; address?: string }) =>
+    (await axios.post(`${API_BASE_URL}/service-centers`, data, getAuthHeaders())).data,
+  updateCenter: async (centerId: number, data: { name?: string; supported_makes?: string[]; city?: string; state?: string; address?: string; is_active?: boolean }) =>
+    (await axios.patch(`${API_BASE_URL}/service-centers/${centerId}`, data, getAuthHeaders())).data,
+  assignCenterMember: async (centerId: number, email: string) =>
+    (await axios.post(`${API_BASE_URL}/service-centers/${centerId}/members`, { email }, getAuthHeaders())).data,
+  rotateCenterInviteCode: async (centerId: number) =>
+    (await axios.post(`${API_BASE_URL}/service-centers/${centerId}/invite-code`, {}, getAuthHeaders())).data,
   getDashboard: async () => {
     const res = await axios.get(`${API_BASE_URL}/service-center/dashboard`, getAuthHeaders());
     return res.data;

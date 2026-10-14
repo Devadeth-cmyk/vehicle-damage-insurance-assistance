@@ -57,6 +57,10 @@ class Claim(Base):
         index=True,
     )
 
+    service_center_id: Mapped[int | None] = mapped_column(
+        ForeignKey("service_centers.id"), nullable=True, index=True
+    )
+
     accident_date: Mapped[str | None] = mapped_column(
         String(30),
         nullable=True,
@@ -110,6 +114,8 @@ class Claim(Base):
         back_populates="claims",
     )
 
+    service_center = relationship("ServiceCenter", back_populates="claims")
+
     vehicle = relationship(
         "Vehicle",
         back_populates="claims",
@@ -127,6 +133,10 @@ class Claim(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+    @property
+    def service_center_name(self) -> str | None:
+        return self.service_center.name if self.service_center else None
 
 
 class ClaimEvidence(Base):

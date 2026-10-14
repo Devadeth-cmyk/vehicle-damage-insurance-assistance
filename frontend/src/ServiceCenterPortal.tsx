@@ -582,7 +582,7 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
               <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#0284c7', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>
                 <User size={16} />
               </div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>Technician Advisor</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>{user?.service_center_name || (user?.role === 'admin' ? 'Platform Admin' : 'Technician Advisor')}</span>
             </div>
           </div>
         </header>

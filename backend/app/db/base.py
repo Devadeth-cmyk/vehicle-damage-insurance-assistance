@@ -10,6 +10,7 @@ def import_models():
     from app.db.models.vehicle import Vehicle
     from app.db.models.claim import Claim, ClaimEvidence
     from app.db.models.assessment import Assessment
+    from app.db.models.service_center import ServiceCenter
 
     return (
         User,
@@ -17,4 +18,5 @@ def import_models():
         Claim,
         ClaimEvidence,
         Assessment,
+        ServiceCenter,
     )

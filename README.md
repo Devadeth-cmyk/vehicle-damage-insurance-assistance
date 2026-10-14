@@ -10,6 +10,7 @@ The project combines a React and TypeScript frontend, a FastAPI backend, SQLAlch
 - [Architecture](#architecture)
 - [Requirements](#requirements)
 - [Quick start on Windows](#quick-start-on-windows)
+- [Service-center routing setup](#service-center-routing-setup)
 - [Build the policy knowledge base](#build-the-policy-knowledge-base)
 - [Useful URLs](#useful-urls)
 - [API overview](#api-overview)
@@ -34,6 +35,8 @@ The project combines a React and TypeScript frontend, a FastAPI backend, SQLAlch
 - Review the service-center claim queue and customer-submitted claim information.
 - Run or review AI damage assessments and technician findings.
 - Record repair estimates and generate claim-package artifacts.
+- Manage service-center organizations, manufacturer routing, locations, and staff membership (platform administrators).
+- Automatically route submitted claims to an active center by vehicle manufacturer, registration state, and accident city when needed.
 
 ### AI and claim processing
 
@@ -46,21 +49,22 @@ The project combines a React and TypeScript frontend, a FastAPI backend, SQLAlch
 ## Architecture
 
 ```text
-Customer browser :5173 ─┐
-                        ├── FastAPI backend :8000 ── SQLite (default)
-Service-center :5174 ───┘          │
-                                   ├── YOLO inference weights
-                                   └── RAG: PDF corpus → text → chunks → ChromaDB → Groq
+Customer browser :5173 ───────┐
+Service-center browser :5174 ─┼── FastAPI backend :8000 ── SQLite (default)
+Admin browser :5175 ──────────┘          │
+                                         ├── YOLO inference weights
+                                         └── RAG: PDF corpus → text → chunks → ChromaDB → Groq
 ```
 
-Both portals use the same frontend source but run as separate local origins:
+The customer, service-center, and platform-admin portals use the same frontend source but run as separate local origins and role-restricted workspaces:
 
 | Portal | Local address | Start command |
 | --- | --- | --- |
 | Customer | `http://localhost:5173` | `npm run dev` |
 | Service center | `http://localhost:5174` | `npm run dev:service-center` |
+| Platform admin | `http://localhost:5175` | `npm run dev:admin` |
 
-The frontend selects its portal from the local port by default. For separate deployments, `VITE_PORTAL_MODE=customer` or `VITE_PORTAL_MODE=service_center` can be used to select the build's portal.
+The frontend selects its portal from the local port by default. Administrators sign in only through the admin portal; public admin registration is disabled. For separate deployments, set `VITE_PORTAL_MODE` to `customer`, `service_center`, or `admin`.
 
 ## Requirements
 
@@ -74,7 +78,7 @@ The frontend selects its portal from the local port by default. For separate dep
 
 ## Quick start on Windows
 
-Open three PowerShell terminals at the repository root. Start the backend and the two frontend portals separately.
+Open four PowerShell terminals at the repository root. Start the backend and each frontend portal separately.
 
 ### 1. Configure and start the backend
 
@@ -117,7 +121,18 @@ npm run dev:service-center
 
 Open `http://localhost:5174`.
 
-Keep all three terminals running while using the application. The first `npm ci` installs the frontend packages; do not run it again if the dependencies are already installed.
+### 4. Start the platform-admin portal
+
+In another terminal:
+
+```powershell
+cd frontend
+npm run dev:admin
+```
+
+Open `http://localhost:5175/admin/login` and sign in with the platform-admin account created by `scripts.bootstrap_admin`. Admins use this separate portal to manage service-center organizations and invitations.
+
+Keep all four terminals running while using the application. The first `npm ci` installs the frontend packages; do not run it again if the dependencies are already installed.
 
 ### macOS/Linux command equivalents
 
@@ -141,6 +156,24 @@ cd frontend && npm ci && npm run dev
 ```bash
 cd frontend && npm run dev:service-center
 ```
+
+## Service-center routing setup
+
+Vehicle registration offers Maruti Suzuki, Hyundai, Tata Motors, Mahindra, Toyota, and Kia. When a customer submits a claim, the backend routes it to an active organization that supports that vehicle make and covers its registration state. If several locations still match, the accident location is checked against the center city. Ambiguous or uncovered claims are not silently sent to an arbitrary center.
+
+### Create the first platform administrator
+
+From the `backend` directory, activate the virtual environment and create an administrator using a strong password. This is a one-time setup for a new database:
+
+```powershell
+$env:ADMIN_EMAIL = "admin@example.com"
+$env:ADMIN_PASSWORD = "use-a-unique-password-at-least-12-characters"
+python -m scripts.bootstrap_admin
+```
+
+Then sign in to the platform-admin portal at `http://localhost:5175/admin/login`. Open **Service Centers** to register each location. Include one supported vehicle make in each center's name (for example, `Toyota Kochi Service Center`); that make is mapped automatically for claim routing. Enter its city and state, then issue a staff invitation code. Share the code securely with that center's staff so they can register under the correct organization.
+
+For multiple locations supporting the same make, configure distinct states or cities. Claims without a unique coverage match are rejected with an explanation until the coverage configuration is corrected. When a center is added or updated, previously unassigned claims are routed if there is now a unique match.
 
 ### Computer-vision model files
 
@@ -199,6 +232,7 @@ The standalone service exposes `/health`, `/companies`, `/search`, and `/chat`. 
 
 - Customer frontend: `http://localhost:5173`
 - Service-center frontend: `http://localhost:5174`
+- Platform-admin frontend: `http://localhost:5175/admin/login`
 - Backend health: `http://127.0.0.1:8000/health`
 - Interactive backend API docs: `http://127.0.0.1:8000/docs`
 - ReDoc: `http://127.0.0.1:8000/redoc`

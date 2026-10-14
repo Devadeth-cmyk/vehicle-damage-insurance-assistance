@@ -143,7 +143,7 @@ export const NewClaimWizard: React.FC<NewClaimWizardProps> = ({
           Claim ID: <strong>{createdClaim.claim_id}</strong>
         </p>
         <p style={{ fontSize: '0.9rem', color: '#64748b', background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '2rem' }}>
-          Your claim and mandatory policy documents (RC, Driving Licence, Policy Document) have been submitted to the backend database and sent to the <strong>Service Center Queue</strong>.
+          Your claim and mandatory documents have been submitted and routed to <strong>{createdClaim.service_center_name || 'the assigned service center'}</strong> based on your vehicle manufacturer and registration state.
         </p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
           <button onClick={() => onNavigate(`/claims/${createdClaim.claim_id}`)} className="btn-primary">
@@ -330,7 +330,13 @@ export const NewClaimWizard: React.FC<NewClaimWizardProps> = ({
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#0f172a', marginBottom: '0.35rem', fontWeight: 700 }}>
                 Policy Type <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <input required placeholder="e.g. Comprehensive" value={policyType} onChange={(e) => setPolicyType(e.target.value)} style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }} />
+              <select required value={policyType} onChange={(e) => setPolicyType(e.target.value)} style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: '#fff', color: '#0f172a' }}>
+                <option value="" disabled>Select policy type</option>
+                <option value="Comprehensive">Comprehensive</option>
+                <option value="Third Party">Third Party</option>
+                <option value="Standalone Own Damage">Standalone Own Damage</option>
+                <option value="Comprehensive (Zero Depreciation)">Comprehensive (Zero Depreciation)</option>
+              </select>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#0f172a', marginBottom: '0.35rem', fontWeight: 700 }}>

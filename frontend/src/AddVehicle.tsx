@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api, type Vehicle } from './api';
+import { api, VEHICLE_MAKES, type Vehicle } from './api';
 import { Car, FileText, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 interface AddVehicleProps {
@@ -124,7 +124,10 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Make / Manufacturer *</label>
-              <input required placeholder="e.g. Toyota" value={make} onChange={e => setMake(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
+              <select required value={make} onChange={e => setMake(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: '#0f172a', colorScheme: 'light' }}>
+                <option value="" disabled>Select manufacturer</option>
+                {VEHICLE_MAKES.map((manufacturer) => <option key={manufacturer} value={manufacturer}>{manufacturer}</option>)}
+              </select>
             </div>
 
             <div>

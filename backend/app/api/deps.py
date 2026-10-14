@@ -64,4 +64,12 @@ def require_service_center(
             detail="Service center access required",
         )
 
+    if current_user.role.value == "service_center":
+        center = current_user.service_center
+        if center is None or not center.is_active:
+            raise HTTPException(
+                status_code=403,
+                detail="Your account is not assigned to an active service-center organization",
+            )
+
     return current_user

@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Boolean, Enum, String
+from sqlalchemy import Boolean, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -54,6 +54,10 @@ class User(Base):
         nullable=False,
     )
 
+    service_center_id: Mapped[int | None] = mapped_column(
+        ForeignKey("service_centers.id"), nullable=True, index=True
+    )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -70,3 +74,5 @@ class User(Base):
         "Claim",
         back_populates="user",
     )
+
+    service_center = relationship("ServiceCenter", back_populates="users")

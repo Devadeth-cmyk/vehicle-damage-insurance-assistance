@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     documents,
     chatbot,
     service_center,
+    service_centers,
 )
 
 
@@ -100,4 +101,10 @@ api_router.include_router(
     service_center.router,
     prefix="/service-center",
     tags=["Service Center"],
+)
+
+api_router.include_router(
+    service_centers.router,
+    prefix="/service-centers",
+    tags=["Service Center Management"],
 )

@@ -13,6 +13,7 @@ from app.db.models.chat import (
     ChatMessage,
     ChatRole,
 )
+from app.db.models.service_center import ServiceCenter
 
 __all__ = [
     "User",
@@ -25,4 +26,5 @@ __all__ = [
     "AssessmentStatus",
     "ChatMessage",
     "ChatRole",
+    "ServiceCenter",
 ]

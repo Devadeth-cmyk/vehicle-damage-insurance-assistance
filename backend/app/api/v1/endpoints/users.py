@@ -26,6 +26,8 @@ def get_profile(
         "pincode": current_user.pincode,
         "country": current_user.country,
         "role": current_user.role.value,
+        "service_center_id": current_user.service_center_id,
+        "service_center_name": current_user.service_center.name if current_user.service_center else None,
         "is_active": current_user.is_active,
     }
 

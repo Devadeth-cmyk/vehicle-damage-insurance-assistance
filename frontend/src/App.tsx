@@ -15,23 +15,28 @@ import { UserProfileView } from './SecondaryUserViews';
 import { api, type User, type Vehicle, type Claim } from './api';
 
 import { ServiceCenterPortal } from './ServiceCenterPortal';
+import { AdminPortal } from './AdminPortal';
 
-type PortalMode = 'customer' | 'service_center';
+type PortalMode = 'customer' | 'service_center' | 'admin';
 
-// The customer app runs on port 5173 and the service-center app on 5174.
+// The customer, service-center, and platform-admin apps use separate ports.
 // A build can override this with VITE_PORTAL_MODE for separate deployments.
 const getAppPortal = (): PortalMode => {
   const configuredPortal = import.meta.env.VITE_PORTAL_MODE?.toLowerCase();
+  if (configuredPortal === 'admin') return 'admin';
   if (configuredPortal === 'service_center') return 'service_center';
   if (configuredPortal === 'customer') return 'customer';
+  if (window.location.port === '5175') return 'admin';
   return window.location.port === '5174' ? 'service_center' : 'customer';
 };
 
 const appPortal = getAppPortal();
-const portalBasePath = appPortal === 'service_center' ? '/service-center' : '/customer';
+const portalBasePath = appPortal === 'service_center' ? '/service-center' : appPortal === 'admin' ? '/admin' : '/customer';
 
-const roleToPortal = (role?: string): PortalMode =>
-  role && ['service_center', 'admin'].includes(role.toLowerCase()) ? 'service_center' : 'customer';
+const roleToPortal = (role?: string): PortalMode => {
+  if (role?.toLowerCase() === 'admin') return 'admin';
+  return role?.toLowerCase() === 'service_center' ? 'service_center' : 'customer';
+};
 
 export const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -80,7 +85,9 @@ export const App: React.FC = () => {
   // Synchronize browser URL with module route
   const navigateToRoute = (route: string) => {
     let targetPath = route;
-    if (portalMode === 'service_center') {
+    if (portalMode === 'admin') {
+      targetPath = route.startsWith('/admin') ? route : `/admin${route}`;
+    } else if (portalMode === 'service_center') {
       targetPath = route.startsWith('/service-center') ? route : `/service-center${route}`;
     } else {
       targetPath = route.startsWith('/customer') ? route : `/customer${route}`;
@@ -164,6 +171,10 @@ export const App: React.FC = () => {
 
   if (!user) {
     return <AuthModal portal={appPortal} onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  if (portalMode === 'admin') {
+    return <AdminPortal user={user} currentRoute={currentRoute} onNavigate={navigateToRoute} onLogout={handleLogout} />;
   }
 
   if (portalMode === 'service_center') {

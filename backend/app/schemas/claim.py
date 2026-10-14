@@ -29,8 +29,6 @@ class ClaimAssessmentSummary(BaseModel):
     error_message: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
-
-
 class ClaimVehicleSummary(BaseModel):
     make: str
     model: str
@@ -54,6 +52,8 @@ class ClaimResponse(BaseModel):
     id: int
     claim_id: str
     vehicle_id: int
+    service_center_id: int | None = None
+    service_center_name: str | None = None
     status: str
     customer_address: str | None = None
     accident_date: str | None = None

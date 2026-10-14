@@ -13,11 +13,19 @@ from app.db.database import get_db
 from app.db.models.claim import Claim, ClaimEvidence, ClaimStatus
 from app.db.models.assessment import Assessment, AssessmentStatus
 from app.db.models.user import User
+from app.db.models.user import UserRole
 from app.services.assessment_service import run_assessment
 from app.services.claim_package_service import generate_claim_package
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _visible_claim_query(db: Session, user: User):
+    query = db.query(Claim)
+    if user.role != UserRole.ADMIN:
+        query = query.filter(Claim.service_center_id == user.service_center_id)
+    return query
 
 
 def _safe_unique_filename(directory: str, original: Optional[str]) -> str:
@@ -82,7 +90,7 @@ def get_dashboard_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claims = db.query(Claim).order_by(Claim.created_at.desc()).all()
+    claims = _visible_claim_query(db, current_user).order_by(Claim.created_at.desc()).all()
     
     total_claims = len(claims)
     new_claims = len([c for c in claims if c.status.value in ["submitted", "draft"]])
@@ -108,6 +116,8 @@ def serialize_claim_detail(claim: Claim) -> dict[str, Any]:
     return {
         "id": claim.id,
         "claim_id": claim.claim_id,
+        "service_center_id": claim.service_center_id,
+        "service_center_name": claim.service_center.name if claim.service_center else None,
         "status": claim.status.value,
         "user_id": claim.user_id,
         "customer_name": claim.user.full_name if claim.user else "Policyholder",
@@ -171,7 +181,7 @@ def get_service_center_claims(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claims = db.query(Claim).order_by(Claim.created_at.desc()).all()
+    claims = _visible_claim_query(db, current_user).order_by(Claim.created_at.desc()).all()
     return [serialize_claim_detail(c) for c in claims]
 
 
@@ -181,7 +191,7 @@ def get_service_center_claim_by_id(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claim = db.query(Claim).filter(Claim.claim_id == claim_id).first()
+    claim = _visible_claim_query(db, current_user).filter(Claim.claim_id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
     return serialize_claim_detail(claim)
@@ -194,7 +204,7 @@ def update_claim_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claim = db.query(Claim).filter(Claim.claim_id == claim_id).first()
+    claim = _visible_claim_query(db, current_user).filter(Claim.claim_id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
     
@@ -217,7 +227,7 @@ def assign_technician(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claim = db.query(Claim).filter(Claim.claim_id == claim_id).first()
+    claim = _visible_claim_query(db, current_user).filter(Claim.claim_id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
     
@@ -234,7 +244,7 @@ def upload_service_center_evidence(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claim = db.query(Claim).filter(Claim.claim_id == claim_id).first()
+    claim = _visible_claim_query(db, current_user).filter(Claim.claim_id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
@@ -270,7 +280,7 @@ def submit_technician_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claim = db.query(Claim).filter(Claim.claim_id == claim_id).first()
+    claim = _visible_claim_query(db, current_user).filter(Claim.claim_id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
@@ -307,7 +317,7 @@ def save_repair_estimate(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_service_center),
 ):
-    claim = db.query(Claim).filter(Claim.claim_id == claim_id).first()
+    claim = _visible_claim_query(db, current_user).filter(Claim.claim_id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
     "dev:service-center": "vite --port 5174 --strictPort",
+    "dev:admin": "vite --port 5175 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
