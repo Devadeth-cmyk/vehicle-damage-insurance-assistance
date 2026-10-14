@@ -10,7 +10,6 @@ The project combines a React and TypeScript frontend, a FastAPI backend, SQLAlch
 - [Architecture](#architecture)
 - [Requirements](#requirements)
 - [Quick start on Windows](#quick-start-on-windows)
-- [Configuration](#configuration)
 - [Build the policy knowledge base](#build-the-policy-knowledge-base)
 - [Useful URLs](#useful-urls)
 - [API overview](#api-overview)
@@ -142,40 +141,6 @@ cd frontend && npm ci && npm run dev
 ```bash
 cd frontend && npm run dev:service-center
 ```
-
-## Configuration
-
-The backend reads settings from environment variables and `backend/.env`. Create this file locally; it is intentionally excluded from Git. Example:
-
-```dotenv
-APP_NAME=Vehicle Damage Insurance AI
-DEBUG=true
-DATABASE_URL=sqlite:///./vehicle_insurance.db
-SECRET_KEY=replace-with-a-long-random-secret
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-UPLOAD_DIR=../uploads
-GENERATED_DIR=../generated
-
-# Optional for generated RAG answers. Keep the real key private.
-GROQ_API_KEY=
-GROQ_MODEL=llama-3.3-70b-versatile
-GROQ_FALLBACK_MODEL=llama-3.1-8b-instant
-
-# Optional model paths, relative to the backend directory.
-DAMAGE_MODEL_PATH=./models/damage/best.pt
-PARTS_MODEL_PATH=./models/parts/parts.pt
-SEVERITY_MODEL_PATH=./models/severity/best.pt
-```
-
-Generate a random signing key locally in PowerShell with:
-
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-
-Copy the output into `SECRET_KEY`. Do not commit `.env` files, API keys, passwords, or production signing keys.
-
-The RAG configuration loads `GROQ_API_KEY` from the process environment, the repository-root `.env`, `backend/.env`, or the RAG scripts' local `.env`. Other optional RAG settings include `EMBEDDING_MODEL`, `RAG_TOP_K`, `RAG_MIN_SIMILARITY`, `GROQ_TIMEOUT`, and `LLM_MAX_TOKENS`.
 
 ### Computer-vision model files
 
