@@ -1,7 +1,0 @@
-chromadb
-sentence-transformers
-requests
-fastapi
-uvicorn
-python-dotenv
-pydantic>=2

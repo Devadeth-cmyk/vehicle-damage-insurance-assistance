@@ -85,7 +85,6 @@ py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-pip install -r rag_pipeline\requirements-rag.txt
 ```
 
 Create `backend/.env` as described in [Configuration](#configuration), then start the API:
@@ -131,7 +130,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-pip install -r rag_pipeline/requirements-rag.txt
 python main.py
 ```
 
@@ -286,8 +284,7 @@ npm run build
 │   │   ├── rag/                # RAG integration modules
 │   │   └── services/           # Auth, claims, assessment, and package logic
 │   ├── rag_pipeline/
-│   │   ├── scripts/            # PDF processing, indexing, retrieval, and RAG API
-│   │   └── requirements-rag.txt
+│   │   └── scripts/            # PDF processing, indexing, retrieval, and RAG API
 │   ├── tests/                  # Backend pytest suite
 │   ├── main.py                 # Backend development entry point
 │   └── requirements.txt
@@ -320,7 +317,7 @@ Confirm the backend is running on port 8000. The frontend API client currently u
 
 ### RAG reports that the knowledge base or collection is missing
 
-Confirm the policy PDFs exist under root `data/`, install `backend/rag_pipeline/requirements-rag.txt`, then rerun the four knowledge-base build commands in order. The RAG scripts require both `data/` and `processed/` directories at the repository root.
+Confirm the policy PDFs exist under root `data/`, install dependencies from `backend/requirements.txt`, then rerun the four knowledge-base build commands in order. The RAG scripts require both `data/` and `processed/` directories at the repository root.
 
 ### The assistant returns retrieved text instead of a generated answer
 

@@ -1,60 +1,40 @@
-# ==============================
-# Backend
-# ==============================
+# Install from the backend directory with: python -m pip install -r requirements.txt
+
+# FastAPI application and ASGI server
 fastapi
 uvicorn[standard]
 
-# ==============================
-# Database
-# ==============================
-sqlalchemy
-alembic
-
-# ==============================
-# Configuration / Validation
-# ==============================
-pydantic
+# Configuration, validation, authentication, and database
+pydantic>=2
 pydantic-settings
 email-validator
 python-dotenv
-
-# ==============================
-# Authentication
-# ==============================
+SQLAlchemy
+alembic
 python-jose[cryptography]
-bcrypt>=4.0
+bcrypt>=4
 
-# ==============================
-# File Uploads
-# ==============================
+# Upload handling and API clients
 python-multipart
+httpx
+requests
 
-# ==============================
-# AI / Computer Vision
-# ==============================
+# Vehicle damage inference and image processing
 numpy
-pillow
+Pillow
 opencv-python
-
-# YOLO
-ultralytics
-
-# Deep Learning
 torch
 torchvision
+ultralytics
 
-# ==============================
-# Claim Package / PDF
-# ==============================
+# Claim report PDF generation
 reportlab
 
-# ==============================
-# HTTP / API
-# ==============================
-httpx
+# Policy RAG pipeline (PDF extraction, vector database, embeddings)
+pymupdf
+chromadb
+sentence-transformers
 
-# ==============================
-# Testing
-# ==============================
+# Development and backend test suite
 pytest
 pytest-asyncio
