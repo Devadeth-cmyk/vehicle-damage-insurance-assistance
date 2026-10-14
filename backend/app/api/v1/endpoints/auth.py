@@ -20,7 +20,7 @@ def register(
     db: Session = Depends(get_db),
 ):
     user = register_user(db, request)
-    return authenticate_user(db, user.email, request.password)
+    return authenticate_user(db, user.email, request.password, request.portal)
 
 
 @router.post(
@@ -42,7 +42,12 @@ def login(
             detail="Email and password are required",
         )
 
-    return authenticate_user(db, user_email, user_password)
+    return authenticate_user(
+        db,
+        user_email,
+        user_password,
+        request.portal if request else None,
+    )
 
 @router.post(
     "/token",

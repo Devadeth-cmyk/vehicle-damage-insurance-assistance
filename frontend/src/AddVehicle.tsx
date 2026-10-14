@@ -1,34 +1,34 @@
 import React, { useState } from 'react';
-import { api } from './api';
+import { api, type Vehicle } from './api';
 import { Car, FileText, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 interface AddVehicleProps {
   onNavigate: (route: string) => void;
-  onVehicleAdded: () => void;
+  onVehicleAdded: () => void | Promise<void>;
+  vehicle?: Vehicle;
 }
 
-export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdded }) => {
+export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdded, vehicle }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   // Form states
-  const [regNo, setRegNo] = useState('');
-  const [vehicleType, setVehicleType] = useState('Sedan');
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
+  const [regNo, setRegNo] = useState(vehicle?.registration_number ?? '');
+  const [vehicleType, setVehicleType] = useState(vehicle?.vehicle_type || 'Sedan');
+  const [make, setMake] = useState(vehicle?.make ?? '');
+  const [model, setModel] = useState(vehicle?.model ?? '');
   const [variant] = useState('VXi / Executive');
-  const [year, setYear] = useState<number>(2023);
-  const [fuelType, setFuelType] = useState('Petrol');
+  const [year, setYear] = useState<number>(vehicle?.year || 2023);
+  const [fuelType, setFuelType] = useState(vehicle?.fuel_type || 'Petrol');
   const [transmission] = useState('Automatic');
   const [color] = useState('Pearl White');
+  const [vin, setVin] = useState(vehicle?.vin || '');
+  const [engineNo, setEngineNo] = useState(vehicle?.engine_number || '');
 
-  const [vin, setVin] = useState('');
-  const [engineNo, setEngineNo] = useState('');
-
-  const [regDate] = useState('2023-05-10');
-  const [regState, setRegState] = useState('Kerala');
-  const [rto, setRto] = useState('KL-07 Ernakulam');
+  const [regDate] = useState(vehicle?.registration_date || '2023-05-10');
+  const [regState, setRegState] = useState(vehicle?.registration_state || 'Kerala');
+  const [rto, setRto] = useState(vehicle?.rto || 'KL-07 Ernakulam');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,30 +36,38 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
     setError('');
 
     try {
-      await api.post('/vehicles', {
+      const vehicleDetails = {
         registration_number: regNo,
         make,
         model,
         year: Number(year),
         fuel_type: fuelType,
         vehicle_type: vehicleType,
+        ...(vehicle ? {} : {
         variant,
         transmission,
         color,
+        registration_date: regDate,
+        }),
         vin,
         engine_number: engineNo,
-        registration_date: regDate,
         registration_state: regState,
         rto
-      });
+      };
+
+      if (vehicle) {
+        await api.patch(`/vehicles/${vehicle.id}`, vehicleDetails);
+      } else {
+        await api.post('/vehicles', vehicleDetails);
+      }
 
       setSuccess(true);
-      onVehicleAdded();
+      await onVehicleAdded();
       setTimeout(() => {
         onNavigate('/vehicles');
-      }, 1500);
+      }, 800);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to register vehicle. Check inputs.');
+      setError(err.response?.data?.detail || (vehicle ? 'Failed to save vehicle details.' : 'Failed to register vehicle. Check inputs.'));
     } finally {
       setLoading(false);
     }
@@ -72,9 +80,9 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
           <ArrowLeft size={18} /> Back
         </button>
         <div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white' }}>Register New Vehicle</h2>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>{vehicle ? 'Edit Vehicle Details' : 'Register New Vehicle'}</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Complete your vehicle registration details.
+            {vehicle ? 'Update the details you entered when registering this vehicle.' : 'Complete your vehicle registration details.'}
           </p>
         </div>
       </div>
@@ -87,7 +95,7 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
 
       {success && (
         <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <CheckCircle2 size={20} /> Vehicle registered successfully! Redirecting to list...
+          <CheckCircle2 size={20} /> {vehicle ? 'Vehicle details saved.' : 'Vehicle registered successfully.'} Returning to your vehicles...
         </div>
       )}
 
@@ -138,6 +146,7 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
                 <option value="Hybrid" style={{ background: '#ffffff', color: '#0f172a' }}>Hybrid</option>
               </select>
             </div>
+
           </div>
         </div>
 
@@ -151,12 +160,10 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>VIN / Chassis Number</label>
               <input placeholder="17-digit VIN number" value={vin} onChange={e => setVin(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
             </div>
-
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Engine Number</label>
               <input placeholder="Engine serial no." value={engineNo} onChange={e => setEngineNo(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
             </div>
-
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>Registration State</label>
               <input value={regState} onChange={e => setRegState(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'white' }} />
@@ -170,7 +177,7 @@ export const AddVehicle: React.FC<AddVehicleProps> = ({ onNavigate, onVehicleAdd
         </div>
 
         <button type="submit" className="btn-primary" disabled={loading} style={{ justifyContent: 'center', padding: '1rem' }}>
-          {loading ? 'Submitting Registration...' : 'Complete Vehicle Registration'}
+          {loading ? (vehicle ? 'Saving vehicle details...' : 'Submitting Registration...') : (vehicle ? 'Save Vehicle Details' : 'Complete Vehicle Registration')}
         </button>
       </form>
     </div>

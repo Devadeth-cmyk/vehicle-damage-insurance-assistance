@@ -22,7 +22,6 @@ Usage (Colab, replaces the whole "18. PDF CLAIM REPORT" cell)
     )
 """
 import hashlib
-import tempfile
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
@@ -273,7 +272,15 @@ def _fit_image(path, max_w, max_h, tmpdir):
     Re-encodes to a bounded JPEG so webp/png inputs work and the PDF stays small."""
     if not path or not Path(path).exists():
         return None
-    im = PILImage.open(path).convert("RGB")
+    im = PILImage.open(path)
+    # ReportLab can embed JPEGs directly. Avoid creating a throwaway copy for
+    # the common case; this also preserves the submitted photo bytes outside
+    # the PDF and avoids temp-directory permission failures on Windows.
+    if im.format == "JPEG" and im.mode in ("RGB", "L"):
+        w, h = im.size
+        k = min(max_w / w, max_h / h)
+        return RLImage(str(path), width=w * k, height=h * k)
+    im = im.convert("RGB")
     im.thumbnail((1600, 1600))
     out = Path(tmpdir) / (Path(path).stem + "_pdf.jpg")
     im.save(out, "JPEG", quality=85)
@@ -375,6 +382,11 @@ def _assess_readiness(pkg, findings):
     miss_docs = [lbl for key, lbl in REQUIRED_DOCS if not det.get(key)]
     if miss_docs:
         issues.append(("med", "Supporting documents not detected: " + "; ".join(miss_docs) + "."))
+    for review in pkg.get("document_status", {}).get("review", {}).values():
+        if not isinstance(review, dict) or str(review.get("status", "")).startswith("Verified"):
+            continue
+        if review.get("note"):
+            issues.append(("high", str(review["note"])))
 
     if not findings:
         issues.append(("high", "The AI detected no damage. A technician must inspect the vehicle and add the "
@@ -537,14 +549,19 @@ def _party_section(pkg):
     fl = _section("1. Claim and Party Details")
     fl += [Paragraph("Customer and vehicle", S["H2"]), _kv_grid([
         ("Name", c.get("customer_name")), ("Contact number", c.get("contact_number")),
-        ("Email", c.get("email")), ("Insurer", v.get("insurance_company")),
+        ("Email", c.get("email")), ("Customer address", c.get("customer_address")),
+        ("Insurer", v.get("insurance_company")),
         ("Registration", v.get("vehicle_registration")), ("Policy number", v.get("policy_number")),
         ("Make", v.get("make")), ("Model", v.get("model")),
-        ("Variant", v.get("variant")), ("VIN / chassis", v.get("vin")),
+        ("Variant", v.get("variant")), ("Year", v.get("year")),
+        ("Vehicle type", v.get("vehicle_type")), ("Fuel type", v.get("fuel_type")),
+        ("VIN / chassis", v.get("vin")), ("Engine number", v.get("engine_number")),
+        ("Transmission", v.get("transmission")), ("Colour", v.get("color")),
     ])]
     fl += [Paragraph("Loss details", S["H2"]), _kv_grid([
         ("Date of loss", a.get("accident_date")), ("Time", a.get("accident_time")),
-        ("Location", a.get("accident_location")),
+        ("Location", a.get("accident_location")), ("Accident type", a.get("accident_type")),
+        ("Policy type", a.get("policy_type")), ("Policy expiry", a.get("policy_expiry")),
     ])]
     narrative = a.get("accident_description", "")
     narrative = narrative or ""
@@ -745,15 +762,30 @@ def _estimate_section(pkg, findings):
 def _documents_section(pkg):
     ds = pkg.get("document_status", {})
     det = ds.get("detected_document_categories", {})
+    reviewed = ds.get("review", {})
     fl = _section("6. Supporting Documents")
     rows = [[P(h, "hdr") for h in ("Document", "Status")]]
-    extra = []
     for i, (key, lbl) in enumerate(REQUIRED_DOCS, start=1):
+        review = reviewed.get(key, {})
         ok = bool(det.get(key))
+        status = review.get("status") or ("Filename match; unverified" if ok else "Not provided / not verified")
+        color = "#2E7D32" if status.startswith("Verified") else "#B26A00" if status.startswith("Filename match") else "#C62828"
         rows.append([P(lbl), Paragraph(
-            f'<font color="{"#2E7D32" if ok else "#C62828"}"><b>{"Detected" if ok else "Not detected"}</b></font>',
+            f'<font color="{color}"><b>{esc(status)}</b></font>',
             S["cell"])])
     fl.append(_table(rows, [110 * mm, 68 * mm]))
+    if reviewed:
+        fl.append(Spacer(1, 4))
+        fl.append(P("Document review notes", "H2"))
+        for key, review in reviewed.items():
+            label = dict(REQUIRED_DOCS).get(key, key.replace("_", " ").title())
+            note = review.get("note") if isinstance(review, dict) else str(review)
+            filename = review.get("file") if isinstance(review, dict) else None
+            text = f"<b>{esc(label)}:</b> "
+            if filename:
+                text += f"{esc(filename)} — "
+            text += esc(note or "No reviewer note.")
+            fl.append(P(text, "body"))
     fl.append(Spacer(1, 4))
     files = ds.get("files", [])
     fl.append(P("<b>Files in supporting-documents folder:</b> " + (esc("; ".join(files)) if files else
@@ -872,9 +904,9 @@ def _method_section(pkg):
 def _signoff_section(pkg):
     w = pkg.get("workshop", {})
     fl = [CondPageBreak(95 * mm)] + _section("10. Declaration and Sign-off")
-    fl.append(P("I have inspected the vehicle and the photographs listed in this package. I have reviewed each AI "
-                "finding and recorded my decision in Section 3. The information provided is true and complete to "
-                "the best of my knowledge.", "body"))
+    fl.append(P("The following declaration and sign-off fields are intentionally left for the responsible "
+                "workshop technician, authorised workshop representative, and insurer/surveyor. This generated "
+                "report does not attest that these parties have inspected, approved, or accepted the claim.", "body"))
     fl.append(Spacer(1, 8))
     line = lambda: P("&nbsp;", "cell")
     rows = [[P(h, "hdr") for h in ("Role", "Name", "Signature", "Date")],
@@ -916,23 +948,22 @@ def compute_submission_status(pkg):
 def build_claim_pdf(pkg, out_path, original_dir=None, annotated_dir=None, supporting_dir=None):
     findings = _flatten(pkg)
     status_text, status_color, issues = _assess_readiness(pkg, findings)
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    story = []
+    story += _cover(pkg, findings, status_text, status_color, issues)
+    story += _party_section(pkg)
+    story += _findings_section(pkg, findings)
+    story += _verification_section(pkg, findings)
+    story += _consistency_section(pkg, findings)
+    story += _estimate_section(pkg, findings)
+    story += _documents_section(pkg)
+    story += _evidence_register(pkg, original_dir, annotated_dir)
+    story += _image_section(pkg, findings, original_dir, annotated_dir, str(Path(out_path).parent))
+    story += _method_section(pkg)
+    story += _signoff_section(pkg)
 
-    with tempfile.TemporaryDirectory() as tmp:
-        story = []
-        story += _cover(pkg, findings, status_text, status_color, issues)
-        story += _party_section(pkg)
-        story += _findings_section(pkg, findings)
-        story += _verification_section(pkg, findings)
-        story += _consistency_section(pkg, findings)
-        story += _estimate_section(pkg, findings)
-        story += _documents_section(pkg)
-        story += _evidence_register(pkg, original_dir, annotated_dir)
-        story += _image_section(pkg, findings, original_dir, annotated_dir, tmp)
-        story += _method_section(pkg)
-        story += _signoff_section(pkg)
-
-        doc = _Doc(str(out_path), title=f"Claim Package - {pkg.get('claim_id', '')}",
-                   author=pkg.get("workshop", {}).get("workshop_name", "") or "Claim Package Generator",
-                   subject="Digital vehicle insurance claim package (AI-assisted, human-verified)")
-        doc.multiBuild(story, canvasmaker=_canvas_factory({"claim_id": pkg.get("claim_id", "")}))
+    doc = _Doc(str(out_path), title=f"Claim Package - {pkg.get('claim_id', '')}",
+               author=pkg.get("workshop", {}).get("workshop_name", "") or "Claim Package Generator",
+               subject="Digital vehicle insurance claim package (AI-assisted, human-reviewed)")
+    doc.multiBuild(story, canvasmaker=_canvas_factory({"claim_id": pkg.get("claim_id", "")}))
     return str(out_path)

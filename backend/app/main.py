@@ -48,6 +48,13 @@ ensure_columns("claims", claim_columns)
 ensure_columns("vehicles", {
     "vin": "VARCHAR(100)",
     "engine_number": "VARCHAR(100)",
+    "vehicle_type": "VARCHAR(50)",
+    "variant": "VARCHAR(100)",
+    "transmission": "VARCHAR(50)",
+    "color": "VARCHAR(50)",
+    "registration_date": "VARCHAR(30)",
+    "registration_state": "VARCHAR(100)",
+    "rto": "VARCHAR(100)",
 })
 ensure_columns("users", {
     "address_line": "VARCHAR(500)",

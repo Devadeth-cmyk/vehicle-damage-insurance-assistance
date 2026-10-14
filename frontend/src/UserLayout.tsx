@@ -281,6 +281,10 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
       {/* PERSISTENT FLOATING RAG CHATBOT BUTTON */}
       {currentRoute !== '/assistant' && <button
         onClick={() => setIsChatbotOpen(!isChatbotOpen)}
+        type="button"
+        aria-label={isChatbotOpen ? 'Close Insurance Assistant' : 'Open Insurance Assistant'}
+        aria-expanded={isChatbotOpen}
+        title="Insurance Assistant"
         style={{
           position: 'fixed',
           bottom: '2rem',
@@ -289,18 +293,18 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
           background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
           color: 'white',
           border: 'none',
-          borderRadius: '9999px',
-          padding: '0.85rem 1.5rem',
-          fontWeight: 700,
-          fontSize: '0.9rem',
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          padding: 0,
           display: 'flex',
           alignItems: 'center',
-          gap: '0.5rem',
+          justifyContent: 'center',
           boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
           cursor: 'pointer'
         }}
       >
-        <Sparkles size={18} /> 💬 Insurance Assistant
+        <MessageSquare size={23} />
       </button>}
 
       {/* FLOATING CHATBOT DRAWER / MODAL */}

@@ -4,6 +4,7 @@ import { UserLayout } from './UserLayout';
 import { UserDashboard } from './UserDashboard';
 import { MyVehicles } from './MyVehicles';
 import { AddVehicle } from './AddVehicle';
+import { VehicleDetailsView } from './VehicleDetailsView';
 import { NewClaimWizard } from './NewClaimWizard';
 import { ClaimsModule } from './ClaimsModule';
 import { ClaimDetailsView } from './ClaimDetailsView';
@@ -15,11 +16,28 @@ import { api, type User, type Vehicle, type Claim } from './api';
 
 import { ServiceCenterPortal } from './ServiceCenterPortal';
 
+type PortalMode = 'customer' | 'service_center';
+
+// The customer app runs on port 5173 and the service-center app on 5174.
+// A build can override this with VITE_PORTAL_MODE for separate deployments.
+const getAppPortal = (): PortalMode => {
+  const configuredPortal = import.meta.env.VITE_PORTAL_MODE?.toLowerCase();
+  if (configuredPortal === 'service_center') return 'service_center';
+  if (configuredPortal === 'customer') return 'customer';
+  return window.location.port === '5174' ? 'service_center' : 'customer';
+};
+
+const appPortal = getAppPortal();
+const portalBasePath = appPortal === 'service_center' ? '/service-center' : '/customer';
+
+const roleToPortal = (role?: string): PortalMode =>
+  role && ['service_center', 'admin'].includes(role.toLowerCase()) ? 'service_center' : 'customer';
+
 export const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentRoute, setCurrentRoute] = useState<string>('/dashboard');
-  const [portalMode, setPortalMode] = useState<'customer' | 'service_center'>('customer');
+  const portalMode = appPortal;
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -33,11 +51,13 @@ export const App: React.FC = () => {
     if (token) {
       try {
         const res = await api.get('/users/me');
-        setUser(res.data);
-        if (res.data.role && ['service_center', 'admin'].includes(res.data.role.toLowerCase())) {
-          setPortalMode('service_center');
+        const actualPortal = roleToPortal(res.data.role);
+        if (actualPortal !== appPortal) {
+          localStorage.removeItem('token');
+        } else {
+          setUser(res.data);
+          if (appPortal === 'customer') fetchUserData();
         }
-        fetchUserData();
       } catch (err) {
         localStorage.removeItem('token');
       }
@@ -72,17 +92,31 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname;
-      if (pathname.startsWith('/service-center')) {
-        setPortalMode('service_center');
-        const sub = pathname.replace('/service-center', '') || '/dashboard';
-        setCurrentRoute(sub);
-      } else if (pathname.startsWith('/customer')) {
-        setPortalMode('customer');
-        const sub = pathname.replace('/customer', '') || '/dashboard';
-        setCurrentRoute(sub);
-      } else {
-        // default fallback if they navigate to /
+      if (loading) return;
+      if (!user) {
+        const loginPath = `${portalBasePath}/login`;
+        if (pathname !== loginPath) window.history.replaceState({}, '', loginPath);
+        return;
+      }
+
+      const actualPortal = roleToPortal(user.role);
+      if (actualPortal !== appPortal) {
+        localStorage.removeItem('token');
+        setUser(null);
+        window.history.replaceState({}, '', `${portalBasePath}/login`);
+        return;
+      }
+      if (!pathname.startsWith(portalBasePath)) {
+        window.history.replaceState({}, '', `${portalBasePath}/dashboard`);
         setCurrentRoute('/dashboard');
+        return;
+      }
+      const subRoute = pathname.replace(portalBasePath, '') || '/dashboard';
+      if (subRoute === '/login' || subRoute === '/') {
+        window.history.replaceState({}, '', `${portalBasePath}/dashboard`);
+        setCurrentRoute('/dashboard');
+      } else {
+        setCurrentRoute(subRoute);
       }
     };
 
@@ -91,13 +125,12 @@ export const App: React.FC = () => {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [user, loading]);
 
   useEffect(() => {
     if (user) {
-      const basePrefix = portalMode === 'service_center' ? '/service-center' : '/customer';
       const cleanSub = currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`;
-      const targetPath = `${basePrefix}${cleanSub}`;
+      const targetPath = `${portalBasePath}${cleanSub}`;
       if (window.location.pathname !== targetPath) {
         window.history.replaceState({}, '', targetPath);
       }
@@ -105,22 +138,20 @@ export const App: React.FC = () => {
   }, [portalMode, currentRoute, user]);
 
   const handleLoginSuccess = (userData: User) => {
-    setUser(userData);
-    fetchUserData();
-    if (userData.role && ['service_center', 'admin'].includes(userData.role.toLowerCase())) {
-      setPortalMode('service_center');
-      window.history.pushState({}, '', '/service-center/dashboard');
-    } else {
-      setPortalMode('customer');
-      window.history.pushState({}, '', '/customer/dashboard');
+    if (roleToPortal(userData.role) !== appPortal) {
+      localStorage.removeItem('token');
+      return;
     }
+    setUser(userData);
+    if (appPortal === 'customer') fetchUserData();
+    window.history.pushState({}, '', `${portalBasePath}/dashboard`);
     setCurrentRoute('/dashboard');
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     setUser(null);
-    window.history.pushState({}, '', '/customer');
+    window.history.pushState({}, '', `${portalBasePath}/login`);
   };
 
   if (loading) {
@@ -132,7 +163,7 @@ export const App: React.FC = () => {
   }
 
   if (!user) {
-    return <AuthModal onLoginSuccess={handleLoginSuccess} />;
+    return <AuthModal portal={appPortal} onLoginSuccess={handleLoginSuccess} />;
   }
 
   if (portalMode === 'service_center') {
@@ -156,6 +187,25 @@ export const App: React.FC = () => {
 
       {currentRoute === '/vehicles/add' && (
         <AddVehicle onNavigate={navigateToRoute} onVehicleAdded={fetchUserData} />
+      )}
+
+      {currentRoute.match(/^\/vehicles\/\d+\/edit$/) && (() => {
+        const vehicleId = Number(currentRoute.split('/')[2]);
+        const vehicle = vehicles.find((item) => item.id === vehicleId);
+        return vehicle ? (
+          <AddVehicle vehicle={vehicle} onNavigate={navigateToRoute} onVehicleAdded={fetchUserData} />
+        ) : (
+          <div role="alert" style={{ padding: '1.5rem', color: '#b91c1c', background: '#fef2f2', borderRadius: '0.75rem' }}>
+            Vehicle not found. <button className="btn-secondary" onClick={() => navigateToRoute('/vehicles')}>Back to vehicles</button>
+          </div>
+        );
+      })()}
+
+      {currentRoute.match(/^\/vehicles\/\d+$/) && (
+        <VehicleDetailsView
+          vehicle={vehicles.find((vehicle) => vehicle.id === Number(currentRoute.split('/')[2]))}
+          onNavigate={navigateToRoute}
+        />
       )}
 
       {currentRoute === '/claims/new' && (

@@ -739,6 +739,18 @@ def generate_digital_claim_package(
             or ""
         ),
 
+        "customer_address": ", ".join(
+            str(value).strip()
+            for value in (
+                getattr(customer_obj, "address_line", None),
+                getattr(customer_obj, "city", None),
+                getattr(customer_obj, "state", None),
+                getattr(customer_obj, "pincode", None),
+                getattr(customer_obj, "country", None),
+            )
+            if value
+        ),
+
         # ----------------------------------------------------
         # VEHICLE
         # ----------------------------------------------------
@@ -818,6 +830,13 @@ def generate_digital_claim_package(
             or ""
         ),
 
+        "year": getattr(vehicle_obj, "year", None),
+        "vehicle_type": getattr(vehicle_obj, "vehicle_type", None) or "",
+        "fuel_type": getattr(vehicle_obj, "fuel_type", None) or "",
+        "engine_number": getattr(vehicle_obj, "engine_number", None) or "",
+        "transmission": getattr(vehicle_obj, "transmission", None) or "",
+        "color": getattr(vehicle_obj, "color", None) or "",
+
         "policy_number": (
             getattr(
                 claim,
@@ -886,6 +905,10 @@ def generate_digital_claim_package(
             or ""
         ),
 
+        "accident_type": getattr(claim, "accident_type", None) or "",
+        "policy_type": getattr(claim, "policy_type", None) or "",
+        "policy_expiry": getattr(claim, "policy_expiry", None) or "",
+
         # ----------------------------------------------------
         # WORKSHOP / SERVICE CENTER
         # ----------------------------------------------------
@@ -914,6 +937,11 @@ def generate_digital_claim_package(
                 claim,
                 "technician_name",
                 None,
+            )
+            or (
+                (assessment.fusion_results or {}).get("technician_name")
+                if isinstance(assessment.fusion_results, dict)
+                else None
             )
             or ""
         ),

@@ -436,6 +436,19 @@ def apply_technician_verification(
             if override is None:
                 continue
 
+            # Older claim records stored technician decisions as plain strings
+            # (for example, "CONFIRMED") instead of the structured object used
+            # by current reviews. Normalize those records before applying them.
+            if isinstance(override, str):
+                decision = override.strip().upper()
+                override = {
+                    "verified": decision in {"CONFIRMED", "VERIFIED", "APPROVED"},
+                    "review_note": override,
+                    "verified_by": technician_name,
+                }
+            elif not isinstance(override, dict):
+                continue
+
             matched_keys.add(
                 detection_id
             )
@@ -1224,6 +1237,7 @@ def build_claim_package_json(
                 "customer_name",
                 "contact_number",
                 "email",
+                "customer_address",
             )
         },
 
@@ -1240,6 +1254,12 @@ def build_claim_package_json(
                 "vin",
                 "policy_number",
                 "insurance_company",
+                "year",
+                "vehicle_type",
+                "fuel_type",
+                "engine_number",
+                "transmission",
+                "color",
             )
         },
 
@@ -1253,6 +1273,9 @@ def build_claim_package_json(
                 "accident_time",
                 "accident_location",
                 "accident_description",
+                "accident_type",
+                "policy_type",
+                "policy_expiry",
             )
         },
 
@@ -1346,7 +1369,7 @@ def build_claim_package_json(
                 ),
 
             "note":
-                (
+                analysis.get("technician_review_notes") or (
                     "AI results must be reviewed "
                     "by a technician before insurer "
                     "submission."
@@ -1395,6 +1418,7 @@ def build_claim_package_json(
                 or summary[
                     "unverified_count"
                 ] > 0
+                or bool(analysis.get("technician_review_notes"))
             ),
 
             "note":
@@ -1740,11 +1764,31 @@ def compute_submission_status(
 
     human_rev = package.get("human_review", {})
     if human_rev.get("required", False):
-        open_items.append("Human-in-the-loop technician review is required.")
+        note = tech_verif.get("note")
+        open_items.append(
+            f"Human-in-the-loop technician review is required: {note}"
+            if note else "Human-in-the-loop technician review is required."
+        )
 
     repair_est = package.get("repair_estimate", {})
     if not repair_est.get("ai_preliminary_items") and not repair_est.get("workshop_items"):
         open_items.append("No preliminary repair line items compiled.")
+
+    document_status = package.get("document_status", {})
+    detected = document_status.get("detected_document_categories", {})
+    missing_documents = [
+        label for key, label in (
+            ("vehicle_registration", "vehicle registration certificate (RC)"),
+            ("driving_licence", "driving licence"),
+            ("policy_document", "insurance policy / schedule"),
+        ) if not detected.get(key)
+    ]
+    if missing_documents:
+        open_items.append(
+            "Required documents are missing or not verified: "
+            + ", ".join(missing_documents)
+            + "."
+        )
 
     if not open_items:
         status_code = "READY_FOR_INSURER_SUBMISSION"
@@ -2206,6 +2250,9 @@ def generate_claim_package(
             or persisted_fusion.get("overrides")
             or {}
         )
+        analysis["technician_review_notes"] = str(
+            persisted_fusion.get("review_notes") or ""
+        ).strip()
 
     effective_overrides = (
         technician_overrides

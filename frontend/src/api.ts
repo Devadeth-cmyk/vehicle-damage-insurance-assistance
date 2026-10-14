@@ -107,7 +107,7 @@ export interface User {
   full_name: string;
   email: string;
   phone: string;
-  role: 'user' | 'service_center' | 'adjuster';
+  role: 'user' | 'service_center' | 'admin' | 'adjuster';
   first_name?: string;
   last_name?: string;
   date_of_birth?: string;

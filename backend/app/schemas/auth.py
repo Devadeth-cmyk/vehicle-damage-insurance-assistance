@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -6,12 +8,13 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=4)
     phone: str | None = None
-    role: str | None = "user"
+    portal: Literal["customer", "service_center"] = "customer"
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    portal: Literal["customer", "service_center"] | None = None
 
 
 class LoginResponse(BaseModel):

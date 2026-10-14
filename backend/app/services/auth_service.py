@@ -29,18 +29,18 @@ def register_user(db: Session, request: RegisterRequest) -> User:
             detail="Email is already registered",
         )
 
-    target_role = UserRole.USER
-    if request.role and request.role.lower() in ["service_center", "technician"]:
-        target_role = UserRole.SERVICE_CENTER
-    elif request.role and request.role.lower() == "admin":
-        target_role = UserRole.ADMIN
-
     user = User(
         full_name=request.full_name,
         email=_normalize_email(request.email),
         phone=request.phone,
         hashed_password=hash_password(request.password),
-        role=target_role,
+        # The portal is selected by the separate app host; public registration
+        # can create customer or service-center accounts, never administrators.
+        role=(
+            UserRole.SERVICE_CENTER
+            if request.portal == "service_center"
+            else UserRole.USER
+        ),
     )
     db.add(user)
     db.commit()
@@ -48,7 +48,12 @@ def register_user(db: Session, request: RegisterRequest) -> User:
     return user
 
 
-def authenticate_user(db: Session, email: str, password: str) -> LoginResponse:
+def authenticate_user(
+    db: Session,
+    email: str,
+    password: str,
+    portal: str | None = None,
+) -> LoginResponse:
     user = _find_user_by_email(db, email)
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(
@@ -59,6 +64,17 @@ def authenticate_user(db: Session, email: str, password: str) -> LoginResponse:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
+        )
+
+    if portal == "customer" and user.role != UserRole.USER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account is not authorized for the customer portal",
+        )
+    if portal == "service_center" and user.role not in (UserRole.SERVICE_CENTER, UserRole.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account is not authorized for the service center portal",
         )
 
     token = create_access_token(user.id, user.role.value)

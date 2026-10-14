@@ -325,16 +325,22 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
       return;
     }
     setIsAssessmentRunning(true);
+    setError(null);
+    setSuccessMessage(null);
 
     try {
       const res = await serviceCenterApi.runAssessment(claimIdToRun);
-      setAssessmentData(res);
+      if (res.status && String(res.status).toLowerCase() !== 'completed') {
+        throw new Error(`Assessment returned unexpected status: ${res.status}`);
+      }
+      const refreshedClaim = await serviceCenterApi.getClaim(claimIdToRun);
+      setSelectedClaim(refreshedClaim);
+      setAssessmentData(refreshedClaim.assessment || null);
       setSuccessMessage('AI Computer Vision Assessment completed successfully!');
-      await fetchClaimDetail(claimIdToRun);
       setCurrentTab('assessment');
     } catch (err: any) {
       console.error('AI Assessment Error:', err);
-      setError(err.response?.data?.detail || 'AI assessment processing failed.');
+      setError(err.response?.data?.detail || err.message || 'AI assessment processing failed.');
     } finally {
       setIsAssessmentRunning(false);
     }
@@ -879,8 +885,19 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
                     setActionLoading(false);
                   }
                 }}
-                style={{ background: '#ffffff', border: '2px solid #0284c7', borderRadius: '12px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+                style={{ background: '#ffffff', border: '2px solid #0284c7', borderRadius: '12px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}
               >
+                {(actionLoading || isAssessmentRunning) && (
+                  <div className="assessment-processing-overlay" role="status" aria-live="polite">
+                    <div className="assessment-processing-card">
+                      <div className="assessment-scan-icon"><RefreshCw size={30} /></div>
+                      <h4>{actionLoading && !isAssessmentRunning ? 'Preparing your photos' : 'Assessing vehicle damage'}</h4>
+                      <p>{actionLoading && !isAssessmentRunning ? 'Uploading evidence securely…' : 'AI is analyzing the submitted photos for damage and affected parts.'}</p>
+                      <div className="assessment-progress-track"><span /></div>
+                      <small>Please keep this page open while the assessment runs.</small>
+                    </div>
+                  </div>
+                )}
                 <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
                   <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <UploadCloud style={{ color: '#0284c7' }} /> Multi-Photo Capture & Intake
@@ -1098,7 +1115,17 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
 
           {/* TAB 5: AI ASSESSMENT */}
           {currentTab === 'assessment' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', position: 'relative' }}>
+              {isAssessmentRunning && (
+                <div className="assessment-rerun-status" role="status" aria-live="polite">
+                  <RefreshCw size={20} className="assessment-rerun-spinner" />
+                  <div style={{ flex: 1 }}>
+                    <strong>Re-running AI damage assessment…</strong>
+                    <div className="assessment-progress-track"><span /></div>
+                    <small>Analyzing the saved vehicle damage photos. Your results will refresh automatically.</small>
+                  </div>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <button
@@ -1112,8 +1139,9 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
                   <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Computer vision fusion models evaluated on backend.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button onClick={() => handleRunAssessment()} className="btn-secondary" disabled={isAssessmentRunning}>
-                    Re-run AI Assessment
+                  <button onClick={() => handleRunAssessment(selectedClaim?.claim_id)} className="btn-secondary" disabled={isAssessmentRunning}>
+                    {isAssessmentRunning && <RefreshCw size={15} className="assessment-rerun-spinner" />}
+                    {isAssessmentRunning ? 'Re-running…' : 'Re-run AI Assessment'}
                   </button>
                   <button onClick={() => setCurrentTab('review')} className="btn-primary">
                     Proceed to Technician Review →

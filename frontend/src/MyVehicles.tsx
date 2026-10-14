@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Car, ArrowRight, Eye, Trash2 } from 'lucide-react';
+import { Car, Eye, Trash2, Pencil } from 'lucide-react';
 import { api, type Vehicle } from './api';
 
 interface MyVehiclesProps {
@@ -9,31 +9,8 @@ interface MyVehiclesProps {
 }
 
 export const MyVehicles: React.FC<MyVehiclesProps> = ({ vehicles, onNavigate, onVehicleUpdated }) => {
-  const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null);
-  const [vin, setVin] = useState('');
-  const [engineNumber, setEngineNumber] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deletingVehicleId, setDeletingVehicleId] = useState<number | null>(null);
-
-  const saveVehicleIdentifiers = async () => {
-    if (editingVehicleId === null) return;
-    setSaving(true);
-    setError('');
-    try {
-      await api.patch(`/vehicles/${editingVehicleId}`, {
-        vin: vin.trim() || null,
-        engine_number: engineNumber.trim() || null,
-      });
-      setEditingVehicleId(null);
-      await onVehicleUpdated();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Could not save vehicle identification numbers.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const deleteVehicle = async (vehicle: Vehicle) => {
     const confirmed = window.confirm(
@@ -59,11 +36,11 @@ export const MyVehicles: React.FC<MyVehiclesProps> = ({ vehicles, onNavigate, on
         <div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>My Vehicles</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Manage your registered vehicles, insurance policy coverage and damage assessments.
+            Manage your registered vehicles and their registration details.
           </p>
         </div>
         <button onClick={() => onNavigate('/vehicles/add')} className="btn-primary">
-          + Register Vehicle
+          + Add another vehicle
         </button>
       </div>
 
@@ -110,7 +87,6 @@ export const MyVehicles: React.FC<MyVehiclesProps> = ({ vehicles, onNavigate, on
                       </span>
                     </div>
                   </div>
-                  <span className="badge badge-success">INSURED</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', background: '#f8fafc', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
@@ -123,64 +99,30 @@ export const MyVehicles: React.FC<MyVehiclesProps> = ({ vehicles, onNavigate, on
                     <strong>{v.fuel_type || 'Petrol'}</strong>
                   </div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b' }}>POLICY #</span>
-                    <strong>{v.policy_number || 'POL-998877'}</strong>
+                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b' }}>VEHICLE TYPE</span>
+                    <strong>{v.vehicle_type || 'Not provided'}</strong>
                   </div>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b' }}>STATUS</span>
-                    <strong style={{ color: '#34d399' }}>Active</strong>
-                  </div>
+                  <div><span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b' }}>STATE</span><strong>{v.registration_state || 'Not provided'}</strong></div>
                 </div>
-                {editingVehicleId === v.id ? (
-                  <div style={{ display: 'grid', gap: '0.6rem', marginBottom: '1rem' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      VIN / Chassis Number
-                      <input value={vin} onChange={(event) => setVin(event.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.6rem', borderRadius: 'var(--radius-md)' }} />
-                    </label>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Engine Number
-                      <input value={engineNumber} onChange={(event) => setEngineNumber(event.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.6rem', borderRadius: 'var(--radius-md)' }} />
-                    </label>
-                    {error && <p role="alert" style={{ color: '#ef4444', fontSize: '0.8rem' }}>{error}</p>}
-                    <button className="btn-primary" onClick={saveVehicleIdentifiers} disabled={saving}>
-                      {saving ? 'Saving…' : 'Save vehicle identifiers'}
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <p>VIN / Chassis #: {v.vin || 'Not provided'}</p>
-                    <p>Engine #: {v.engine_number || 'Not provided'}</p>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ marginTop: '0.5rem', padding: '0.4rem 0.65rem', fontSize: '0.75rem' }}
-                      onClick={() => {
-                        setEditingVehicleId(v.id);
-                        setVin(v.vin || '');
-                        setEngineNumber(v.engine_number || '');
-                        setError('');
-                      }}
-                    >
-                      Add / Edit VIN and Engine Number
-                    </button>
-                  </div>
-                )}
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', flexWrap: 'wrap' }}>
                 <button
-                  onClick={() => onNavigate(`/user/vehicles/${v.id}`)}
+                  onClick={() => onNavigate(`/vehicles/${v.id}`)}
                   className="btn-secondary"
                   style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', justifyContent: 'center' }}
                 >
-                  <Eye size={15} /> Details
+                  <Eye size={15} /> View details
                 </button>
                 <button
-                  onClick={() => onNavigate('/user/assessment/new')}
+                  type="button"
+                  onClick={() => {
+                    onNavigate(`/vehicles/${v.id}/edit`);
+                  }}
                   className="btn-primary"
-                  style={{ flex: 1.2, padding: '0.5rem', fontSize: '0.8rem', justifyContent: 'center' }}
+                  style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', justifyContent: 'center' }}
                 >
-                  Start Assessment <ArrowRight size={15} />
+                  <Pencil size={15} /> Edit details
                 </button>
                 <button
                   type="button"

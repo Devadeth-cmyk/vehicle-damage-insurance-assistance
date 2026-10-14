@@ -1,283 +1,150 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api, type User } from './api';
-import { Shield, Lock, Mail, User as UserIcon, Phone } from 'lucide-react';
+import { ArrowRight, Building2, CarFront, LockKeyhole, Mail, Phone, UserRound } from 'lucide-react';
+
+type Portal = 'customer' | 'service_center';
 
 interface AuthModalProps {
+  portal: Portal;
   onLoginSuccess: (user: User, token: string) => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSuccess }) => {
+const portalCopy = {
+  customer: {
+    description: 'Access your vehicles, claims, and claim updates.',
+    eyebrow: 'POLICYHOLDER PORTAL',
+    icon: CarFront,
+  },
+  service_center: {
+    description: 'Review assigned claims and manage repair assessments.',
+    eyebrow: 'TECHNICIAN WORKSPACE',
+    icon: Building2,
+  },
+} as const;
+
+export const AuthModal: React.FC<AuthModalProps> = ({ portal, onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState('user');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const formatErrorMsg = (detail: any): string => {
+  useEffect(() => {
+    setIsRegister(false);
+    setError('');
+  }, [portal]);
+
+  const formatErrorMsg = (detail: unknown): string => {
     if (!detail) return '';
     if (typeof detail === 'string') return detail;
-    if (Array.isArray(detail)) {
-      return detail.map((item: any) => item.msg || JSON.stringify(item)).join(', ');
-    }
+    if (Array.isArray(detail)) return detail.map((item: any) => item.msg || JSON.stringify(item)).join(', ');
     return JSON.stringify(detail);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
     setLoading(true);
 
     try {
       if (isRegister) {
-        const regRes = await api.post('/auth/register', {
+        const response = await api.post('/auth/register', {
           email: email.trim(),
           password,
           full_name: fullName.trim(),
           phone: phone.trim() || undefined,
-          role,
+          portal,
         });
-
-        const token = regRes.data?.access_token;
-        if (token) {
-          localStorage.setItem('token', token);
-          try {
-            const profileRes = await api.get('/users/me', {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            onLoginSuccess(profileRes.data, token);
-          } catch {
-            onLoginSuccess({
-              id: Date.now(),
-              full_name: fullName,
-              email,
-              phone,
-              role: 'user'
-            }, token);
-          }
-        } else {
-          setError('Registration successful, but no token returned. Please log in.');
+        const token = response.data?.access_token;
+        if (!token) {
+          setError('Your account was created, but sign-in could not be completed. Please sign in.');
           setIsRegister(false);
+          return;
         }
+        localStorage.setItem('token', token);
+        const profile = await api.get('/users/me', { headers: { Authorization: `Bearer ${token}` } });
+        onLoginSuccess(profile.data, token);
       } else {
-        const loginRes = await api.post('/auth/login', {
+        const response = await api.post('/auth/login', {
           email: email.trim(),
           password,
+          portal,
         });
-
-        const token = loginRes.data.access_token;
+        const token = response.data.access_token;
         localStorage.setItem('token', token);
-
-        const profileRes = await api.get('/users/me', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        onLoginSuccess(profileRes.data, token);
+        const profile = await api.get('/users/me', { headers: { Authorization: `Bearer ${token}` } });
+        onLoginSuccess(profile.data, token);
       }
-    } catch (err: any) {
-      const backendDetail = err.response?.data?.detail;
-      if (backendDetail) {
-        setError(formatErrorMsg(backendDetail));
-      } else if (isRegister) {
-        setError('Account registration failed. Please check network connection or try again.');
-      } else {
-        setError('Invalid credentials or backend server unreachable.');
-      }
+    } catch (requestError: any) {
+      const detail = requestError.response?.data?.detail;
+      setError(detail
+        ? formatErrorMsg(detail)
+        : isRegister
+          ? 'Account creation failed. Check your connection and try again.'
+          : 'We could not sign you in. Check your details and make sure you selected the correct portal.');
     } finally {
       setLoading(false);
     }
   };
 
+  const copy = portalCopy[portal];
+  const PortalIcon = copy.icon;
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem',
-      background: 'var(--bg-primary)'
-    }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '460px', padding: '2.5rem', background: '#ffffff' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            display: 'inline-flex',
-            padding: '1rem',
-            borderRadius: '16px',
-            background: '#e0f2fe',
-            color: '#0284c7',
-            marginBottom: '1rem',
-            boxShadow: '0 4px 12px rgba(2, 132, 199, 0.2)'
-          }}>
-            <Shield size={36} />
-          </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.35rem' }}>
-            AutoInsight
-          </h2>
-          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-            {isRegister ? 'Create your customer policyholder account' : 'Sign in to access your claims & vehicles'}
-          </p>
+    <main className="auth-shell">
+      <section className={`auth-card ${portal}`}>
+        <div className="auth-card-heading">
+          <span className={`auth-large-icon ${portal}`}><PortalIcon size={27} /></span>
+          <span className="auth-eyebrow">{copy.eyebrow}</span>
+          <h1>AutoInsight</h1>
+          <p>{isRegister
+            ? portal === 'customer'
+              ? 'Create your customer policyholder account.'
+              : 'Create an account for your service center team.'
+            : copy.description}</p>
         </div>
 
-        {error && (
-          <div style={{
-            padding: '0.75rem 1rem',
-            borderRadius: 'var(--radius-sm)',
-            background: '#fee2e2',
-            border: '1px solid #fca5a5',
-            color: '#b91c1c',
-            fontSize: '0.85rem',
-            marginBottom: '1.5rem'
-          }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="auth-error" role="alert">{error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <form className="auth-form" onSubmit={handleSubmit}>
           {isRegister && (
             <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem', fontWeight: 600 }}>
-                  Full Name *
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <UserIcon size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 0.75rem 0.75rem 2.5rem',
-                      background: '#f8fafc',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.9rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem', fontWeight: 600 }}>
-                  Mobile Number
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Phone size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+1 555-0192"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 0.75rem 0.75rem 2.5rem',
-                      background: '#f8fafc',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.9rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem', fontWeight: 600 }}>
-                  Account Type
-                </label>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
-                    <input type="radio" name="role" value="user" checked={role === 'user'} onChange={(e) => setRole(e.target.value)} />
-                    Customer
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
-                    <input type="radio" name="role" value="service_center" checked={role === 'service_center'} onChange={(e) => setRole(e.target.value)} />
-                    Service Center Technician
-                  </label>
-                </div>
-              </div>
+              <label className="auth-field">
+                <span>Full name</span>
+                <span className="auth-input-wrap"><UserRound size={17} /><input required autoComplete="name" value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Your name" /></span>
+              </label>
+              <label className="auth-field">
+                <span>Mobile number <small>Optional</small></span>
+                <span className="auth-input-wrap"><Phone size={17} /><input autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Your phone number" /></span>
+              </label>
             </>
           )}
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem', fontWeight: 600 }}>
-              Email Address *
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 0.75rem 0.75rem 2.5rem',
-                  background: '#f8fafc',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.9rem',
-                  outline: 'none'
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem', fontWeight: 600 }}>
-              Password *
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 0.75rem 0.75rem 2.5rem',
-                  background: '#f8fafc',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.9rem',
-                  outline: 'none'
-                }}
-              />
-            </div>
-          </div>
-
-          <button type="submit" className="btn-primary" disabled={loading} style={{ justifyContent: 'center', width: '100%', marginTop: '0.5rem' }}>
-            {loading ? 'Processing...' : isRegister ? 'Create Account' : 'Sign In'}
+          <label className="auth-field">
+            <span>Email address</span>
+            <span className="auth-input-wrap"><Mail size={17} /><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></span>
+          </label>
+          <label className="auth-field">
+            <span>Password</span>
+            <span className="auth-input-wrap"><LockKeyhole size={17} /><input required type="password" autoComplete={isRegister ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" /></span>
+          </label>
+          <button type="submit" className="auth-submit" disabled={loading}>
+            {loading ? 'Please wait...' : isRegister ? (portal === 'customer' ? 'Create customer account' : 'Create service center account') : 'Sign in securely'}
+            {!loading && <ArrowRight size={17} />}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-          <button
-            onClick={() => {
-              setError('');
-              setIsRegister(!isRegister);
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#0284c7',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Create one"}
+        <div className="auth-card-footer">
+          <button type="button" onClick={() => { setError(''); setIsRegister((current) => !current); }}>
+            {isRegister
+              ? 'Already registered? Sign in'
+              : portal === 'customer'
+                ? 'New to AutoInsight? Create a customer account'
+                : 'New service center? Register your team'}
           </button>
         </div>
-      </div>
-    </div>
+        <p className="auth-privacy-note"><LockKeyhole size={13} /> Protected sign-in · Access is limited by account role</p>
+      </section>
+    </main>
   );
 };

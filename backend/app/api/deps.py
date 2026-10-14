@@ -56,7 +56,6 @@ def require_service_center(
 ) -> User:
 
     if current_user.role.value not in [
-        "user",
         "service_center",
         "admin",
     ]:

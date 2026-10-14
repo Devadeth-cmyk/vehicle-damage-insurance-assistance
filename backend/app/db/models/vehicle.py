@@ -39,6 +39,13 @@ class Vehicle(Base):
 
     vin: Mapped[str | None] = mapped_column(String(100), nullable=True)
     engine_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    vehicle_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    variant: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    transmission: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    registration_date: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    registration_state: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    rto: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     fuel_type: Mapped[str | None] = mapped_column(
         String(50),
