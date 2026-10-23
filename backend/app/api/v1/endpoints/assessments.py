@@ -13,6 +13,13 @@ from app.db.database import get_db
 from app.db.models.assessment import Assessment
 from app.db.models.claim import Claim, ClaimStatus
 from app.db.models.user import User
+from app.core.config import settings
+from app.ai.fusion_service import (
+    LOW_DAMAGE_CONFIDENCE,
+    LOW_PART_CONFIDENCE,
+    OVERLAP_THRESHOLD,
+    AMBIGUOUS_MARGIN,
+)
 
 from app.services.assessment_service import (
     run_assessment,
@@ -1022,8 +1029,15 @@ def generate_digital_claim_package(
             (stored_fusion.get("summary") or {}).get("vehicle_segment"),
 
         "config": {
-            "source":
-                "backend",
+            "source": "backend runtime settings",
+            "img_size": settings.IMG_SIZE or "Ultralytics default",
+            "damage_conf": settings.DAMAGE_CONF,
+            "parts_conf": settings.PARTS_CONF,
+            "severity_conf": settings.SEVERITY_CONF,
+            "part_conf_review": LOW_PART_CONFIDENCE,
+            "damage_conf_review": LOW_DAMAGE_CONFIDENCE,
+            "overlap_review": OVERLAP_THRESHOLD,
+            "ambiguous_margin": AMBIGUOUS_MARGIN,
         },
     }
 

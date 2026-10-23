@@ -338,7 +338,10 @@ def _status(d):
 
 def _is_placeholder_narrative(text):
     t = (text or "").strip().lower()
-    return len(t) < 25 or "please verify the visible" in t
+    return (not t or t in {
+        "n/a", "na", "none", "unknown", "not provided",
+        "no description provided", "please describe the accident",
+    } or "please verify the visible" in t)
 
 
 def _assess_readiness(pkg, findings):
@@ -378,6 +381,35 @@ def _assess_readiness(pkg, findings):
     qf = [q for q in pkg.get("evidence", {}).get("quality", []) if q.get("flags")]
     if qf:
         issues.append(("med", f"{len(qf)} photograph(s) carry quality/integrity flags (see Section 7)."))
+
+    vehicle = pkg.get("vehicle", {})
+    make = str(vehicle.get("make") or "").strip().lower()
+    model = str(vehicle.get("model") or "").strip().lower()
+    variant = str(vehicle.get("variant") or "").strip().lower()
+    vehicle_type = str(vehicle.get("vehicle_type") or "").strip().lower()
+    if "harrier" in model and vehicle_type and not any(
+        kind in vehicle_type for kind in ("suv", "sport utility", "utility vehicle")
+    ):
+        issues.append(("high", "Vehicle type conflicts with the model listed; verify the vehicle details against the registration certificate."))
+    if "tata" in make and "vxi" in variant:
+        issues.append(("med", "The listed Tata variant may not match the vehicle; verify it against the registration certificate."))
+
+    policy_type = str(pkg.get("accident", {}).get("policy_type") or "").strip().lower()
+    if policy_type in {"third party", "third-party", "third party only", "liability only"} and est.get("workshop_items"):
+        issues.append(("high", "Policy is listed as third-party while the workshop estimate covers the insured vehicle; verify own-damage coverage in the policy schedule."))
+
+    for finding in findings:
+        part = str(finding.get("part") or "").strip().lower().replace("_", " ")
+        damage = str(finding.get("damage_type") or "").strip().lower().replace("_", " ")
+        if part == "hood" and any(token in damage for token in ("lamp", "headlight", "head lamp")):
+            issues.append(("med", f"Finding {finding['ref']} pairs the hood with lamp damage; confirm the damaged part and finding label against the photograph."))
+        if part in {"unknown", "body panel / bumper"}:
+            issues.append(("med", f"Finding {finding['ref']} has no confirmed vehicle part; identify the part before relying on its repair estimate."))
+
+    workshop = pkg.get("workshop", {})
+    if not workshop.get("technician_signature") or not workshop.get("authorised_signatory_signature"):
+        issues.append(("med", "Workshop signature fields are blank; complete the applicable manual sign-off in Section 10 before final submission."))
+
     det = pkg.get("document_status", {}).get("detected_document_categories", {})
     miss_docs = [lbl for key, lbl in REQUIRED_DOCS if not det.get(key)]
     if miss_docs:
@@ -660,14 +692,16 @@ def _verification_section(pkg, findings):
         fl.append(_table(rows, [11 * mm, 66 * mm, 40 * mm, 61 * mm]))
     fl.append(Spacer(1, 3))
     fl.append(P("Rejected findings are excluded from the insurer-facing assessment once the package is finalised. "
-                "Sign-off is recorded in Section 10.", "small"))
+                "Manual signatures, where required, are recorded in Section 10.", "small"))
     return fl
 
 
 def _consistency_section(pkg, findings):
     cons = pkg.get("evidence_consistency", {})
     narrative = pkg.get("accident", {}).get("accident_description", "")
-    placeholder = _is_placeholder_narrative(narrative) or cons.get("status") == "NOT_ASSESSED"
+    placeholder = _is_placeholder_narrative(narrative)
+    if placeholder and cons.get("status") != "NOT_ASSESSED":
+        cons = {**cons, "status": "NOT_ASSESSED"}
     status = cons.get("status", "INSUFFICIENT_EVIDENCE")
     fl = _section("4. Claim vs Visual Evidence Check")
     col = {"CONSISTENT": GREEN, "POTENTIAL_MISMATCH": AMBER}.get(status, GREY)
@@ -745,11 +779,27 @@ def _estimate_section(pkg, findings):
     fl.append(_table(rows, [17 * mm, 30 * mm, 26 * mm, 19 * mm, 18 * mm, 28 * mm, 40 * mm],
                      extra=[("SPAN", (0, last), (5, last)), ("BACKGROUND", (0, last), (-1, last), PANEL)]))
 
-    un = est.get("unpriced_findings", [])
+    un = list(est.get("unpriced_findings", []))
+    priced_refs = {
+        ref
+        for item in items
+        for ref in (item.get("source_refs") or [
+            ref_lookup.get((item.get("image"), item.get("damage_id")), "-")
+        ])
+    }
+    known_unpriced_refs = {
+        finding.get("ref") or ref_lookup.get((finding.get("image"), finding.get("damage_id")), "-")
+        for finding in un
+    }
+    for finding in findings:
+        ref = finding.get("ref", "-")
+        if str(finding.get("part") or "").strip().lower() == "unknown" and ref not in priced_refs and ref not in known_unpriced_refs:
+            un.append(finding)
+            known_unpriced_refs.add(ref)
     if un:
         fl.append(Spacer(1, 4))
         fl.append(P("<b>Findings not priced</b> (need workshop pricing): " + "; ".join(
-            f"{u.get('ref') or ref_lookup.get((u['image'], u.get('damage_id')), '-')} {esc(u['part'])} / {esc(u['damage_type'])}"
+            f"{u.get('ref') or ref_lookup.get((u.get('image'), u.get('damage_id')), '-')} {esc(u.get('part', 'unknown'))} / {esc(u.get('damage_type', 'unspecified'))}"
             for u in un), "body"))
     fl.append(Spacer(1, 5))
     fl.append(P(f"Rate card: {esc(est.get('rate_card_version', '-'))} (illustrative). Identical part + damage-type "
@@ -799,7 +849,7 @@ def _documents_section(pkg):
 
 def _evidence_register(pkg, original_dir, annotated_dir):
     fl = _section("7. Evidence Register and Integrity")
-    rows = [[P(h, "hdr") for h in ("Type", "File", "Size", "SHA-256 (first 16)")]]
+    rows = [[P(h, "hdr") for h in ("Type", "File", "Size", "SHA-256")]]
     n = 0
     for label, folder in (("Original", original_dir), ("Annotated", annotated_dir)):
         if folder and Path(folder).exists():
@@ -807,14 +857,14 @@ def _evidence_register(pkg, original_dir, annotated_dir):
                 if p.is_file():
                     n += 1
                     rows.append([P(label), P(esc(p.name)), P(f"{p.stat().st_size / 1024:,.0f} KB", "cell_r"),
-                                 P(f'<font name="Courier" size="7.5">{_sha12(p)[:16]}</font>')])
+                                 P(f'<font name="Courier" size="5">{_sha12(p)}</font>')])
     if n == 0:
         fl.append(P("Evidence folders were not supplied to the report generator.", "body"))
         return fl
     fl.append(P("Original photographs are preserved unmodified. The hashes let the insurer confirm that the files "
                 "in this ZIP are the files that were assessed.", "small"))
     fl.append(Spacer(1, 4))
-    fl.append(_table(rows, [22 * mm, 82 * mm, 22 * mm, 52 * mm]))
+    fl.append(_table(rows, [20 * mm, 67 * mm, 18 * mm, 73 * mm]))
     qual = pkg.get("evidence", {}).get("quality", [])
     if qual:
         fl.append(Paragraph("Photograph quality and metadata checks (heuristic, informational)", S["H2"]))
@@ -881,7 +931,7 @@ def _method_section(pkg):
     if cfg:
         rows += [
             [P("Inference"), P(f"Image size {cfg.get('img_size', '-')}; detection conf. >= {cfg.get('damage_conf', '-')}; "
-                               f"parts conf. >= {cfg.get('parts_conf', '-')}")],
+                               f"parts conf. >= {cfg.get('parts_conf', '-')}; severity conf. >= {cfg.get('severity_conf', '-')}")],
             [P("Review thresholds"), P(f"Part conf. < {cfg.get('part_conf_review', '-')}; damage conf. < "
                                        f"{cfg.get('damage_conf_review', '-')}; overlap < {cfg.get('overlap_review', '-')}; "
                                        f"ambiguity margin {cfg.get('ambiguous_margin', '-')}")],
@@ -904,9 +954,10 @@ def _method_section(pkg):
 def _signoff_section(pkg):
     w = pkg.get("workshop", {})
     fl = [CondPageBreak(95 * mm)] + _section("10. Declaration and Sign-off")
-    fl.append(P("The following declaration and sign-off fields are intentionally left for the responsible "
-                "workshop technician, authorised workshop representative, and insurer/surveyor. This generated "
-                "report does not attest that these parties have inspected, approved, or accepted the claim.", "body"))
+    fl.append(P("Technician decisions shown in Section 3 are recorded in the application and are not a handwritten "
+                "signature. Complete the workshop technician and authorised signatory fields before final submission "
+                "where required. The insurer/surveyor receipt fields are for use after the package is submitted. "
+                "This generated report does not attest that any party has approved or accepted the claim.", "body"))
     fl.append(Spacer(1, 8))
     line = lambda: P("&nbsp;", "cell")
     rows = [[P(h, "hdr") for h in ("Role", "Name", "Signature", "Date")],

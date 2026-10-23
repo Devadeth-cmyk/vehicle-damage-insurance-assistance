@@ -273,6 +273,40 @@ def upload_service_center_evidence(
     ]}
 
 
+@router.delete("/claims/{claim_id}/evidence/vehicle-damage")
+def clear_service_center_damage_evidence(
+    claim_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_service_center),
+):
+    """Remove service-center damage photos before the technician replaces them."""
+    claim = _visible_claim_query(db, current_user).filter(Claim.claim_id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+
+    evidence_items = [
+        evidence for evidence in claim.evidence
+        if str(evidence.file_type or "").startswith("Vehicle Damage (")
+    ]
+    evidence_directory = (Path("storage") / "claims" / claim_id / "evidence").resolve()
+    deleted_count = 0
+
+    for evidence in evidence_items:
+        file_path = Path(evidence.file_path).resolve()
+        try:
+            file_path.relative_to(evidence_directory)
+        except ValueError:
+            logger.warning("Skipping damage evidence outside claim directory: %s", evidence.id)
+        else:
+            if file_path.is_file():
+                file_path.unlink()
+        db.delete(evidence)
+        deleted_count += 1
+
+    db.commit()
+    return {"message": f"Removed {deleted_count} previous service-center damage photo(s)", "deleted_count": deleted_count}
+
+
 @router.post("/claims/{claim_id}/technician-review")
 def submit_technician_review(
     claim_id: str,

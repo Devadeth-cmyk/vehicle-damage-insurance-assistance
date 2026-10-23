@@ -21,6 +21,7 @@ interface UserLayoutProps {
   currentRoute: string;
   onNavigate: (route: string) => void;
   onLogout: () => void;
+  themeToggle: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -29,6 +30,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
   currentRoute,
   onNavigate,
   onLogout,
+  themeToggle,
   children
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -93,6 +95,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
       {/* SIDEBAR DESKTOP */}
       <aside
+        className="customer-sidebar"
         style={{
           width: '260px',
           background: '#ffffff',
@@ -204,6 +207,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
       <div style={{ flex: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         {/* TOPBAR */}
         <header
+          className="customer-topbar"
           style={{
             height: '64px',
             borderBottom: '1px solid var(--border-color)',
@@ -235,6 +239,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {themeToggle}
             <div
               onClick={() => handleNavClick('/profile')}
               style={{

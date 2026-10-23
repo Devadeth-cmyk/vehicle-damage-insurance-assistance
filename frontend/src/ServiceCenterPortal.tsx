@@ -31,6 +31,7 @@ interface ServiceCenterPortalProps {
   currentRoute?: string;
   onNavigate?: (route: string) => void;
   onLogout?: () => void;
+  themeToggle: React.ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,7 +132,7 @@ const AnnotatedPhoto: React.FC<{ src: string; findings: any[]; imageSize?: numbe
   );
 };
 
-export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, currentRoute, onNavigate, onLogout }) => {
+export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, currentRoute, onNavigate, onLogout, themeToggle }) => {
   const currentTab = (currentRoute && currentRoute !== '/') ? currentRoute.replace(/^\//, '') : 'dashboard';
   const setCurrentTab = (tab: string) => {
     if (onNavigate) {
@@ -346,6 +347,26 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
     }
   };
 
+  const replaceAssessmentPhotos = async () => {
+    if (!selectedClaimId) return;
+    setActionLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      await serviceCenterApi.clearVehicleDamageEvidence(selectedClaimId);
+      const refreshedClaim = await serviceCenterApi.getClaim(selectedClaimId);
+      setSelectedClaim(refreshedClaim);
+      setAssessmentData(refreshedClaim.assessment || null);
+      setUploadFiles([]);
+      setCurrentTab('evidence');
+      setSuccessMessage('Previous service-center damage photos were removed. Select the replacement photos to continue.');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Could not remove the previous damage photos. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSaveTechnicianReview = async (approve: boolean) => {
     if (!selectedClaimId) return;
     if (approve && !assignedTechName.trim()) {
@@ -536,6 +557,7 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
       <div style={{ flex: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         {/* HEADER BAR */}
         <header
+          className="service-center-topbar"
           style={{
             height: '64px',
             background: '#ffffff',
@@ -561,6 +583,7 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {themeToggle}
             <button onClick={loadDashboardAndClaims} className="btn-secondary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <RefreshCw size={14} /> Refresh Queue
             </button>
@@ -1129,11 +1152,12 @@ export const ServiceCenterPortal: React.FC<ServiceCenterPortalProps> = ({ user, 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <button
-                    onClick={() => setCurrentTab('details')}
+                    onClick={replaceAssessmentPhotos}
+                    disabled={actionLoading || isAssessmentRunning}
                     className="btn-secondary"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginBottom: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#ffffff', cursor: 'pointer' }}
                   >
-                    <ArrowLeft size={15} /> Back to Claim Info
+                    <ArrowLeft size={15} /> Replace Photos
                   </button>
                   <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>AI Damage & Part Detection Results</h3>
                   <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Computer vision fusion models evaluated on backend.</p>

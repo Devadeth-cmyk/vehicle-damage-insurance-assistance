@@ -16,6 +16,7 @@ import { api, type User, type Vehicle, type Claim } from './api';
 
 import { ServiceCenterPortal } from './ServiceCenterPortal';
 import { AdminPortal } from './AdminPortal';
+import { ThemeToggle } from './ThemeToggle';
 
 type PortalMode = 'customer' | 'service_center' | 'admin';
 
@@ -39,10 +40,21 @@ const roleToPortal = (role?: string): PortalMode => {
 };
 
 export const App: React.FC = () => {
+  const themeKey = `autoinsight-theme-${appPortal}`;
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    localStorage.getItem(themeKey) === 'dark' ? 'dark' : 'light'
+  );
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentRoute, setCurrentRoute] = useState<string>('/dashboard');
   const portalMode = appPortal;
+  const toggleTheme = () => setTheme((value) => value === 'light' ? 'dark' : 'light');
+  const themeToggle = <ThemeToggle theme={theme} onToggle={toggleTheme} />;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(themeKey, theme);
+  }, [theme, themeKey]);
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -163,22 +175,25 @@ export const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-        Loading AutoInsight Insurance Portal...
-      </div>
+      <>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} floating />
+        <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+          Loading AutoInsight Insurance Portal...
+        </div>
+      </>
     );
   }
 
   if (!user) {
-    return <AuthModal portal={appPortal} onLoginSuccess={handleLoginSuccess} />;
+    return <><ThemeToggle theme={theme} onToggle={toggleTheme} floating /><AuthModal portal={appPortal} onLoginSuccess={handleLoginSuccess} /></>;
   }
 
   if (portalMode === 'admin') {
-    return <AdminPortal user={user} currentRoute={currentRoute} onNavigate={navigateToRoute} onLogout={handleLogout} />;
+    return <AdminPortal user={user} currentRoute={currentRoute} onNavigate={navigateToRoute} onLogout={handleLogout} themeToggle={themeToggle} />;
   }
 
   if (portalMode === 'service_center') {
-    return <ServiceCenterPortal user={user} currentRoute={currentRoute} onNavigate={navigateToRoute} onLogout={handleLogout} />;
+    return <ServiceCenterPortal user={user} currentRoute={currentRoute} onNavigate={navigateToRoute} onLogout={handleLogout} themeToggle={themeToggle} />;
   }
 
   return (
@@ -187,6 +202,7 @@ export const App: React.FC = () => {
       currentRoute={currentRoute}
       onNavigate={navigateToRoute}
       onLogout={handleLogout}
+      themeToggle={themeToggle}
     >
       {currentRoute === '/dashboard' && (
         <UserDashboard user={user} vehicles={vehicles} claims={claims} onNavigate={navigateToRoute} />

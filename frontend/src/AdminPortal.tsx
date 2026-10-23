@@ -10,6 +10,7 @@ type AdminPortalProps = {
   currentRoute: string;
   onNavigate: (route: string) => void;
   onLogout: () => void;
+  themeToggle: React.ReactNode;
 };
 
 type Center = {
@@ -25,7 +26,7 @@ type Center = {
 const panel: React.CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 22, boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)' };
 const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', minHeight: 44, padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: 9, color: '#0f172a', background: '#fff', font: 'inherit' };
 
-export const AdminPortal: React.FC<AdminPortalProps> = ({ user, currentRoute, onNavigate, onLogout }) => {
+export const AdminPortal: React.FC<AdminPortalProps> = ({ user, currentRoute, onNavigate, onLogout, themeToggle }) => {
   const [centers, setCenters] = useState<Center[]>([]);
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
@@ -139,7 +140,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, currentRoute, on
     </article>
   );
 
-  return <div style={{ minHeight: '100vh', background: '#f5f8fc', color: '#0f172a' }}>
+  return <div className="admin-shell" style={{ minHeight: '100vh', background: '#f5f8fc', color: '#0f172a' }}>
     <aside style={{ position: 'fixed', inset: '0 auto 0 0', width: 250, padding: 18, background: '#101a2e', color: '#fff', display: 'flex', flexDirection: 'column', zIndex: 20, boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', gap: 11, alignItems: 'center', padding: '10px 6px 28px' }}><span style={{ display: 'grid', placeItems: 'center', background: '#0284c7', width: 42, height: 42, borderRadius: 12 }}><ShieldCheck /></span><div><strong style={{ fontSize: 17 }}>AutoInsight</strong><div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: 1 }}>PLATFORM ADMIN</div></div></div>
       <div style={{ color: '#64748b', fontSize: 10, fontWeight: 700, letterSpacing: 1.3, padding: '0 14px 8px' }}>WORKSPACE</div>
@@ -148,9 +149,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, currentRoute, on
     </aside>
 
     <div style={{ marginLeft: 250, minHeight: '100vh' }}>
-      <header style={{ minHeight: 72, boxSizing: 'border-box', position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 30px', background: 'rgba(255,255,255,0.96)', borderBottom: '1px solid #e2e8f0', backdropFilter: 'blur(10px)' }}>
+      <header className="admin-topbar" style={{ minHeight: 72, boxSizing: 'border-box', position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 30px', background: 'rgba(255,255,255,0.96)', borderBottom: '1px solid #e2e8f0', backdropFilter: 'blur(10px)' }}>
         <div><div style={{ color: '#0284c7', fontSize: 11, fontWeight: 800, letterSpacing: 1.1 }}>AUTOINSiGHT / ADMIN</div><strong style={{ fontSize: 16 }}>Platform administration</strong></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}><span style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: '50%', background: '#e0f2fe', color: '#0369a1', fontWeight: 800 }}>{(user.full_name || 'A').slice(0, 1).toUpperCase()}</span><div><strong style={{ display: 'block', fontSize: 13 }}>{user.full_name || 'Administrator'}</strong><span style={{ color: '#64748b', fontSize: 12 }}>{user.email}</span></div></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>{themeToggle}<span style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: '50%', background: '#e0f2fe', color: '#0369a1', fontWeight: 800 }}>{(user.full_name || 'A').slice(0, 1).toUpperCase()}</span><div><strong style={{ display: 'block', fontSize: 13 }}>{user.full_name || 'Administrator'}</strong><span style={{ color: '#64748b', fontSize: 12 }}>{user.email}</span></div></div>
       </header>
 
       <main style={{ maxWidth: 1380, margin: '0 auto', padding: '30px clamp(18px, 3vw, 42px)', display: 'grid', gap: 22 }}>

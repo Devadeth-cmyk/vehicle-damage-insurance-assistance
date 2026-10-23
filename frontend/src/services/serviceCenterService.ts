@@ -61,6 +61,11 @@ export const serviceCenterApi = {
     return res.data;
   },
 
+  clearVehicleDamageEvidence: async (claimId: string) => {
+    const res = await axios.delete(`${API_BASE_URL}/service-center/claims/${claimId}/evidence/vehicle-damage`, getAuthHeaders());
+    return res.data;
+  },
+
   runAssessment: async (claimId: string) => {
     const res = await axios.post(`${API_BASE_URL}/assessments/${claimId}/run`, {}, getAuthHeaders());
     return res.data;

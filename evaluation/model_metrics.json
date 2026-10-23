@@ -1,0 +1,56 @@
+{
+  "provenance": {
+    "status": "transcribed_from_saved_notebook_validation_outputs",
+    "warning": "These are validation metrics recorded in notebooks, not a newly executed independent holdout test. The original datasets and prediction artifacts are not present in this repository, so the values could not be independently reproduced here.",
+    "damage_detection_source": "notebooks/damage_detection_training.ipynb, cell 17 output",
+    "damage_detection_runtime": "Ultralytics 8.4.150, Python 3.13.15, CUDA Tesla T4",
+    "parts_segmentation_source": "notebooks/vehicle_parts_training.ipynb, cell 13 output",
+    "parts_segmentation_runtime": "Ultralytics 8.4.157, Python 3.13.15, CUDA Tesla T4",
+    "severity_note": "notebooks/damage_severity_estimation.ipynb trains/evaluates the same six damage categories and its severity calculation is area-threshold heuristic code. It does not provide validated Minor/Moderate/Severe classification metrics."
+  },
+  "damage_detection": {
+    "task": "Bounding-box damage detection",
+    "validation_images": 810,
+    "validation_instances": 1744,
+    "overall": {"precision": 0.749, "recall": 0.666, "map50": 0.709, "map50_95": 0.554},
+    "classes": [
+      {"name": "dent", "precision": 0.673, "recall": 0.491, "map50": 0.554, "map50_95": 0.312},
+      {"name": "scratch", "precision": 0.633, "recall": 0.484, "map50": 0.541, "map50_95": 0.300},
+      {"name": "crack", "precision": 0.530, "recall": 0.305, "map50": 0.347, "map50_95": 0.172},
+      {"name": "glass shatter", "precision": 0.968, "recall": 0.978, "map50": 0.992, "map50_95": 0.929},
+      {"name": "lamp broken", "precision": 0.804, "recall": 0.837, "map50": 0.872, "map50_95": 0.727},
+      {"name": "tire flat", "precision": 0.888, "recall": 0.903, "map50": 0.950, "map50_95": 0.887}
+    ]
+  },
+  "part_segmentation": {
+    "task": "Vehicle-part instance segmentation",
+    "validation_images": 401,
+    "validation_instances": 2042,
+    "overall": {"box_precision": 0.608, "box_recall": 0.786, "box_map50": 0.685, "box_map50_95": 0.572, "mask_precision": 0.616, "mask_recall": 0.794, "mask_map50": 0.697, "mask_map50_95": 0.558},
+    "classes": [
+      {"name": "back_bumper", "mask_map50_95": 0.743},
+      {"name": "back_door", "mask_map50_95": 0.801},
+      {"name": "back_glass", "mask_map50_95": 0.807},
+      {"name": "back_left_door", "mask_map50_95": 0.637},
+      {"name": "back_left_light", "mask_map50_95": 0.368},
+      {"name": "back_light", "mask_map50_95": 0.632},
+      {"name": "back_right_door", "mask_map50_95": 0.453},
+      {"name": "back_right_light", "mask_map50_95": 0.376},
+      {"name": "front_bumper", "mask_map50_95": 0.884},
+      {"name": "front_door", "mask_map50_95": 0.818},
+      {"name": "front_glass", "mask_map50_95": 0.917},
+      {"name": "front_left_door", "mask_map50_95": 0.548},
+      {"name": "front_left_light", "mask_map50_95": 0.470},
+      {"name": "front_light", "mask_map50_95": 0.665},
+      {"name": "front_right_door", "mask_map50_95": 0.345},
+      {"name": "front_right_light", "mask_map50_95": 0.341},
+      {"name": "hood", "mask_map50_95": 0.884},
+      {"name": "left_mirror", "mask_map50_95": 0.345},
+      {"name": "object", "mask_map50_95": 0.000},
+      {"name": "right_mirror", "mask_map50_95": 0.436},
+      {"name": "tailgate", "mask_map50_95": 0.538},
+      {"name": "trunk", "mask_map50_95": 0.569},
+      {"name": "wheel", "mask_map50_95": 0.255}
+    ]
+  }
+}

@@ -636,7 +636,10 @@ def consistency_check(
         accident_description
     )
 
-    if len(narrative) < 25:
+    if not narrative or narrative in {
+        "n/a", "na", "none", "unknown", "not provided",
+        "no description provided", "please describe the accident",
+    } or "please verify the visible" in narrative:
 
         return {
             "status": "NOT_ASSESSED",
@@ -644,9 +647,7 @@ def consistency_check(
             "detected_but_not_explicitly_reported": [],
             "claimed_but_not_detected": [],
             "note": (
-                "Accident description is empty "
-                "or too short for meaningful "
-                "comparison."
+                "Accident description is empty or a placeholder."
             ),
         }
 
