@@ -88,6 +88,7 @@ class Claim(Base):
     policy_expiry: Mapped[str | None] = mapped_column(String(30), nullable=True)
     accident_time: Mapped[str | None] = mapped_column(String(20), nullable=True)
     accident_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    assigned_technician: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     status: Mapped[ClaimStatus] = mapped_column(
         Enum(ClaimStatus),

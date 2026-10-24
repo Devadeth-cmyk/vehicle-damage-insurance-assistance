@@ -43,6 +43,7 @@ claim_columns = {
     "policy_expiry": "VARCHAR(30)",
     "accident_time": "VARCHAR(20)",
     "accident_type": "VARCHAR(100)",
+    "assigned_technician": "VARCHAR(255)",
 }
 ensure_columns("claims", claim_columns)
 ensure_columns("vehicles", {

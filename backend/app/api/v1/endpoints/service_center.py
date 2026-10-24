@@ -149,7 +149,11 @@ def serialize_claim_detail(claim: Claim) -> dict[str, Any]:
         "accident_location": claim.accident_location or "Not provided",
         "accident_type": claim.accident_type or "Not provided",
         "accident_description": claim.accident_description,
-        "assigned_technician": getattr(claim, "assigned_technician", None) or "Not assigned",
+        "assigned_technician": (
+            getattr(claim, "assigned_technician", None)
+            or ((claim.assessment.fusion_results or {}).get("technician_name") if getattr(claim, "assessment", None) else None)
+            or "Not assigned"
+        ),
         "created_at": claim.created_at.isoformat() if claim.created_at else None,
         "updated_at": claim.updated_at.isoformat() if claim.updated_at else None,
         "evidence": [
@@ -231,7 +235,12 @@ def assign_technician(
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
     
-    setattr(claim, "assigned_technician", payload.technician_name)
+    claim.assigned_technician = payload.technician_name
+    if claim.assessment:
+        fusion = dict(claim.assessment.fusion_results or {})
+        fusion["technician_name"] = payload.technician_name
+        claim.assessment.fusion_results = fusion
+        flag_modified(claim.assessment, "fusion_results")
     db.commit()
     return {"message": "Technician assigned", "assigned_technician": payload.technician_name}
 
@@ -339,6 +348,8 @@ def submit_technician_review(
     
     assessment.status = AssessmentStatus.COMPLETED
     claim.status = ClaimStatus.HUMAN_REVIEW
+    if fusion.get("technician_name"):
+        claim.assigned_technician = fusion["technician_name"]
     db.commit()
 
     return {"message": "Technician review saved successfully", "status": claim.status.value}
