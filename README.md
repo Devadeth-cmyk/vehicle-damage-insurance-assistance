@@ -2,13 +2,6 @@
 
 **A claim-management platform that connects customers, service centers, computer-vision damage assessment, and insurance-policy search.**
 
-![Build status: not configured](https://img.shields.io/badge/build-not_configured-lightgrey)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Version: unreleased](https://img.shields.io/badge/version-unreleased-lightgrey)
-![Languages: Python and TypeScript](https://img.shields.io/badge/languages-Python%20%7C%20TypeScript-blue)
-
-> Build and release badges are placeholders: this repository currently has no CI workflow or published release.
-
 ## Table of Contents
 
 - [Overview](#overview)
@@ -411,9 +404,6 @@ Place compatible weights at the configured `DAMAGE_MODEL_PATH` and `PARTS_MODEL_
 
 These inputs/artifacts are intentionally ignored by Git. Restore authorized source policy files and model weights from their approved source; the user database, uploaded evidence, generated packages, and vector index must be supplied or recreated for local use. Do not force-add private data to a public repository.
 
-### Is the AI repair amount an insurer quotation?
-
-No. The code and report distinguish technician-entered workshop estimates from rule-based indicative estimates. Indicative rates are not verified quotes or settlement values; a qualified technician, surveyor, and insurer determine the applicable estimate and decision.
 
 ## License
 
@@ -421,9 +411,9 @@ This project is licensed under the [MIT License](LICENSE). The copyright notice 
 
 ## Contact and Acknowledgements
 
-- Maintainer: **TODO: add maintainer name or organization**
-- Contact: **TODO: add project email or preferred contact method**
-- LinkedIn or project profile: **TODO: add URL, if applicable**
+- Maintainer: Devadeth B
+- Contact: devadethb2004@gmail.com
+- LinkedIn or project profile: https://www.linkedin.com/in/devadethb
 - Repository: [Devadeth-cmyk/vehicle-damage-insurance-assistance](https://github.com/Devadeth-cmyk/vehicle-damage-insurance-assistance)
 
 The project uses open-source components listed in `frontend/package.json` and `backend/requirements.txt`. Add acknowledgements and attribution for the specific datasets, pretrained weights, policy documents, and model sources before redistributing the project or its outputs.
