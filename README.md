@@ -1,335 +1,429 @@
-# Vehicle Damage Insurance AI
+# AutoInsight — Vehicle Damage Insurance Assistance
 
-AutoInsight is a vehicle insurance claim platform with separate customer and service-center portals. Customers can manage vehicles, submit and track claims, and ask questions about policy documents. Service-center users can review claim information, run damage assessments, enter repair estimates, and prepare claim packages.
+**A claim-management platform that connects customers, service centers, computer-vision damage assessment, and insurance-policy search.**
 
-The project combines a React and TypeScript frontend, a FastAPI backend, SQLAlchemy persistence, computer-vision inference, and a retrieval-augmented generation (RAG) policy assistant using ChromaDB, sentence-transformers, and Groq.
+![Build status: not configured](https://img.shields.io/badge/build-not_configured-lightgrey)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![Version: unreleased](https://img.shields.io/badge/version-unreleased-lightgrey)
+![Languages: Python and TypeScript](https://img.shields.io/badge/languages-Python%20%7C%20TypeScript-blue)
 
-## Contents
+> Build and release badges are placeholders: this repository currently has no CI workflow or published release.
 
+## Table of Contents
+
+- [Overview](#overview)
 - [Features](#features)
+- [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
-- [Requirements](#requirements)
-- [Quick start on Windows](#quick-start-on-windows)
-- [Service-center routing setup](#service-center-routing-setup)
-- [Build the policy knowledge base](#build-the-policy-knowledge-base)
-- [Useful URLs](#useful-urls)
-- [API overview](#api-overview)
-- [Tests and code checks](#tests-and-code-checks)
-- [Project layout](#project-layout)
-- [Local data and Git](#local-data-and-git)
-- [Troubleshooting](#troubleshooting)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+- [API Reference](#api-reference)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Troubleshooting and FAQ](#troubleshooting-and-faq)
+- [License](#license)
+- [Contact and Acknowledgements](#contact-and-acknowledgements)
+
+## Overview
+
+AutoInsight supports the vehicle-insurance claim workflow in one application. Customers register vehicles, submit claims and evidence, and track progress. Service-center staff review assigned claims, inspect AI assessment results, enter technician findings and repair estimates, and generate claim-package files. Platform administrators manage service-center organizations and staff invitations.
+
+The project addresses a fragmented intake and review process by keeping customer-submitted claim information, service-center review, damage assessment, and policy-document search in a shared backend. It is intended for local development and evaluation by contributors, students, and teams prototyping vehicle-insurance workflows. AI outputs and indicative prices are decision-support information; they do not make coverage or settlement decisions.
 
 ## Features
 
-### Customer portal
+- Separate customer, service-center, and platform-admin portals served from distinct local ports.
+- Customer vehicle registration, claim submission, supporting-document upload, and claim-status tracking.
+- Service-center claim queues, technician review, repair estimates, and PDF/ZIP claim-package generation.
+- Platform-admin management of service-center locations, invitations, staff assignment, and claim routing by vehicle make and service coverage.
+- YOLO-based vehicle-damage and vehicle-part detection, with fusion and severity logic in the assessment pipeline.
+- Policy-document retrieval using ChromaDB and sentence-transformer embeddings, with optional Groq-generated answers and source metadata.
+- Local model-evaluation evidence and SVG visualizations in [`MODEL_EVALUATION.md`](MODEL_EVALUATION.md) and [`evaluation/`](evaluation/).
 
-- Separate customer login and registration.
-- Register vehicles and maintain vehicle details.
-- Submit claims with incident information, photos, and supporting documents.
-- Review submitted claim details, documents, progress, AI assessment results, and claim-package status.
-- Ask questions about policy coverage and procedures through the policy assistant.
+## Tech Stack
 
-### Service-center portal
-
-- Separate service-center login and registration.
-- Review the service-center claim queue and customer-submitted claim information.
-- Run or review AI damage assessments and technician findings.
-- Record repair estimates and generate claim-package artifacts.
-- Manage service-center organizations, manufacturer routing, locations, and staff membership (platform administrators).
-- Automatically route submitted claims to an active center by vehicle manufacturer, registration state, and accident city when needed.
-
-### AI and claim processing
-
-- Vehicle damage and vehicle-part inference through Ultralytics YOLO models.
-- Severity, fusion, and indicative repair-estimate modules.
-- Claim-package PDF and ZIP generation.
-- Policy-document retrieval with insurer and page metadata.
-- Groq-powered policy answers grounded in retrieved document excerpts. If Groq is unavailable, the RAG pipeline can return retrieved policy text instead.
+| Area | Technologies |
+| --- | --- |
+| Frontend | React 19, TypeScript, Vite, Axios, Lucide React |
+| Backend API | Python, FastAPI, Uvicorn, Pydantic Settings |
+| Persistence | SQLAlchemy; SQLite by default; Alembic is included as a dependency |
+| Computer vision | PyTorch, Ultralytics YOLO, OpenCV, NumPy, Pillow |
+| Policy RAG | PyMuPDF, sentence-transformers (`all-MiniLM-L6-v2` by default), ChromaDB, Groq API |
+| Claim artifacts | ReportLab; ZIP support uses Python standard-library facilities |
+| Backend checks | pytest, pytest-asyncio |
+| Frontend checks | Oxlint, TypeScript compiler, Vite build |
 
 ## Architecture
 
-```text
-Customer browser :5173 ───────┐
-Service-center browser :5174 ─┼── FastAPI backend :8000 ── SQLite (default)
-Admin browser :5175 ──────────┘          │
-                                         ├── YOLO inference weights
-                                         └── RAG: PDF corpus → text → chunks → ChromaDB → Groq
+The application is a modular monolith: one FastAPI backend exposes versioned API routes, while one React/Vite codebase selects a role-specific portal using its port or `VITE_PORTAL_MODE`. SQLAlchemy stores users, vehicles, claims, and related records. Local uploads, generated packages, model weights, policy PDFs, and the ChromaDB index are filesystem artifacts rather than checked-in source.
+
+```mermaid
+flowchart LR
+  C[Customer portal :5173] --> API[FastAPI :8000]
+  S[Service-center portal :5174] --> API
+  A[Admin portal :5175] --> API
+  API --> DB[(SQLite by default)]
+  API --> CV[YOLO damage and part assessment]
+  API --> PKG[PDF and ZIP claim packages]
+  API --> RAG[Policy RAG service code]
+  PDF[Policy PDFs in data/] --> ING[Extract, clean, and chunk]
+  ING --> VDB[(ChromaDB index in processed/)]
+  RAG --> VDB
+  RAG --> LLM[Groq API, when configured]
 ```
 
-The customer, service-center, and platform-admin portals use the same frontend source but run as separate local origins and role-restricted workspaces:
+Policy ingestion runs as local scripts: PDFs are extracted, cleaned, chunked, and embedded into a persistent ChromaDB collection. At query time, the RAG pipeline retrieves policy passages, then either asks Groq to draft a grounded response or returns retrieved text if the LLM is unavailable. Model weights and policy source documents are not distributed in this repository.
 
-| Portal | Local address | Start command |
-| --- | --- | --- |
-| Customer | `http://localhost:5173` | `npm run dev` |
-| Service center | `http://localhost:5174` | `npm run dev:service-center` |
-| Platform admin | `http://localhost:5175` | `npm run dev:admin` |
+## Project Structure
 
-The frontend selects its portal from the local port by default. Administrators sign in only through the admin portal; public admin registration is disabled. For separate deployments, set `VITE_PORTAL_MODE` to `customer`, `service_center`, or `admin`.
+```text
+.
+├── backend/                    # FastAPI application, database models, AI services, scripts, and tests
+│   ├── app/                     # API, configuration, persistence, RAG integration, and business services
+│   ├── rag_pipeline/scripts/    # Policy ingestion, vector search, chat, and evaluation scripts
+│   ├── scripts/                 # Administrative bootstrap utilities
+│   └── tests/                   # Backend pytest suite
+├── data/                        # Local source policy PDFs; ignored by Git
+├── evaluation/                  # Recorded evaluation metrics and SVG chart generator/output
+├── frontend/                    # React and TypeScript application for all three portals
+│   └── src/                     # Portal views, components, styles, and API client
+├── inference/                   # Reusable vehicle inference utilities
+├── metadata/                    # Document metadata used by project workflows
+├── notebooks/                   # Model-training and inference experiments
+├── processed/                   # Generated text, chunks, and vector index; ignored by Git
+├── uploads/                     # Local uploaded evidence; ignored by Git
+├── upgrades/                    # Potential development and production-readiness notes
+├── MODEL_EVALUATION.md          # Evaluation evidence, interpretation, and limitations
+└── README.md                    # Project setup and contributor guide
+```
 
-## Requirements
+## Getting Started
 
-- Windows, macOS, or Linux.
-- Node.js `20.19+` or `22.12+` for the Vite version in the lockfile.
-- Python 3.10 or newer, with a version supported by the installed PyTorch and Ultralytics packages.
+### Prerequisites
+
 - Git.
-- Internet access for installing dependencies, downloading the sentence-transformer model on first use, and calling Groq.
-- A Groq API key for generated assistant answers. Retrieval can still provide text when the key is absent, but answers will not be generated by the LLM.
-- Damage and parts model weights for computer-vision assessments. Model weights are local files and are not included in this repository.
+- Python 3.10 or newer. PyTorch and Ultralytics must support the Python version and operating system you choose.
+- Node.js 20.19+ or 22.12+ and npm, as required by the Vite version in the frontend lockfile.
+- Internet access to install dependencies, download the embedding model on first use, and call Groq when generated policy answers are enabled.
+- Optional: compatible YOLO weight files for damage and part assessment; they are not included in Git.
+- Optional: authorized policy PDFs under the repository-root `data/` directory for the policy assistant.
 
-## Quick start on Windows
+### Installation
 
-Open four PowerShell terminals at the repository root. Start the backend and each frontend portal separately.
+Clone the repository and create a Python environment from the repository root.
 
-### 1. Configure and start the backend
+```powershell
+git clone https://github.com/Devadeth-cmyk/vehicle-damage-insurance-assistance.git
+cd vehicle-damage-insurance-assistance
+```
+
+Windows PowerShell:
 
 ```powershell
 cd backend
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-Create `backend/.env` as described in [Configuration](#configuration), then start the API:
-
-```powershell
-python main.py
-```
-
-The API listens on `http://127.0.0.1:8000` by default. The application creates the SQLite tables during startup. The backend can start without model weights, but damage-assessment functions that need those models will not work until the weights are installed in the expected locations.
-
-### 2. Start the customer portal
-
-In a new terminal:
-
-```powershell
-cd frontend
-npm ci
-npm run dev
-```
-
-Open `http://localhost:5173`.
-
-### 3. Start the service-center portal
-
-In another terminal:
-
-```powershell
-cd frontend
-npm run dev:service-center
-```
-
-Open `http://localhost:5174`.
-
-### 4. Start the platform-admin portal
-
-In another terminal:
-
-```powershell
-cd frontend
-npm run dev:admin
-```
-
-Open `http://localhost:5175/admin/login` and sign in with the platform-admin account created by `scripts.bootstrap_admin`. Admins use this separate portal to manage service-center organizations and invitations.
-
-Keep all four terminals running while using the application. The first `npm ci` installs the frontend packages; do not run it again if the dependencies are already installed.
-
-### macOS/Linux command equivalents
-
-Create and activate the backend environment from the repository root:
+macOS/Linux:
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+```
+
+Install frontend dependencies in a separate terminal:
+
+```powershell
+cd frontend
+npm ci
+```
+
+Create `backend/.env` for local backend settings. Create `frontend/.env` only when you need to override the frontend defaults. Do not commit either file or put backend secrets in frontend variables.
+
+### Environment Variables
+
+The backend reads settings from `backend/.env` when started from the `backend` directory. RAG configuration also reads the repository-root `.env`, `backend/.env`, or `backend/rag_pipeline/scripts/.env`. Values below are the defaults present in the code; configure secrets and production-specific values for your environment.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_NAME` | `Vehicle Damage Insurance AI` | FastAPI application name |
+| `APP_VERSION` | `1.0.0` | API version shown by the application |
+| `DEBUG` | `true` | Development debug setting; do not use as a production security control |
+| `DATABASE_URL` | `sqlite:///./vehicle_insurance.db` | SQLAlchemy database connection |
+| `SECRET_KEY` | `CHANGE_THIS_SECRET_KEY` | JWT signing key; **replace with a long, random secret before use** |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Access-token lifetime |
+| `UPLOAD_DIR` | `../uploads` | Backend upload directory, relative to the backend process working directory |
+| `GENERATED_DIR` | `../generated` | Generated-artifact directory |
+| `DAMAGE_MODEL_PATH` | `./models/damage/best.pt` | Damage-detection weights path |
+| `PARTS_MODEL_PATH` | `./models/parts/parts.pt` | Vehicle-part weights path |
+| `SEVERITY_MODEL_PATH` | `./models/severity/best.pt` | Optional severity weights path |
+| `IMG_SIZE` | unset | Optional inference image size; unset uses the model library default |
+| `DAMAGE_CONF` | `0.35` | Damage detection confidence threshold |
+| `PARTS_CONF` | `0.35` | Part detection confidence threshold |
+| `SEVERITY_CONF` | `0.35` | Severity detection confidence threshold |
+| `VEHICLE_SEGMENT_DEFAULT` | `economy` | Default vehicle segment for indicative repair pricing (`economy`, `mid-range`, or `luxury`) |
+| `MAX_UPLOAD_SIZE_MB` | `20` | Configured maximum upload size |
+| `CORS_ORIGINS` | Local development origins on ports 3000, 5173, 5174, and 5175 | Comma-separated allowed origins |
+| `GROQ_API_KEY` | unset | Groq API key; required for generated RAG answers, not retrieval-only behavior |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Primary Groq chat model |
+| `GROQ_FALLBACK_MODEL` | `llama-3.1-8b-instant` | Fallback Groq model |
+| `GROQ_API_URL` | `https://api.groq.com/openai/v1/chat/completions` | Groq-compatible chat-completions URL |
+| `GROQ_TIMEOUT` | `30` | LLM request timeout in seconds |
+| `GROQ_MAX_RETRIES` | `2` | Number of retries after the initial request |
+| `LLM_TEMPERATURE` | `0.1` | Generation temperature |
+| `LLM_MAX_TOKENS` | `600` | Maximum generated tokens |
+| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformer model used for RAG embeddings |
+| `RAG_TOP_K` | `5` | Number of chunks retrieved by default |
+| `RAG_MIN_SIMILARITY` | `0.25` | Minimum similarity threshold |
+| `RAG_MAX_CHARS_PER_CHUNK` | `1800` | Maximum context characters per retrieved chunk |
+| `VITE_API_BASE_URL` | `http://127.0.0.1:8000/api/v1` | Frontend API base URL override |
+| `VITE_PORTAL_MODE` | inferred from local port | Optional portal selection: `customer`, `service_center`, or `admin` |
+
+The platform administrator is bootstrapped separately using `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and optional `ADMIN_NAME` environment variables. The bootstrap script requires a password of 12–72 UTF-8 bytes. Do not commit these values.
+
+### Run Locally
+
+Keep the backend and each portal running in separate terminals. Start the backend from `backend/` with its virtual environment active:
+
+```powershell
 python main.py
 ```
 
-In separate terminals, run the frontends:
+Start the customer portal from `frontend/`:
 
-```bash
-cd frontend && npm ci && npm run dev
+```powershell
+npm run dev
 ```
 
-```bash
-cd frontend && npm run dev:service-center
+Start the service-center portal from `frontend/`:
+
+```powershell
+npm run dev:service-center
 ```
 
-## Service-center routing setup
+Start the platform-admin portal from `frontend/`:
 
-Vehicle registration offers Maruti Suzuki, Hyundai, Tata Motors, Mahindra, Toyota, and Kia. When a customer submits a claim, the backend routes it to an active organization that supports that vehicle make and covers its registration state. If several locations still match, the accident location is checked against the center city. Ambiguous or uncovered claims are not silently sent to an arbitrary center.
+```powershell
+npm run dev:admin
+```
 
-### Create the first platform administrator
+| Portal/service | URL |
+| --- | --- |
+| Customer | `http://localhost:5173` |
+| Service center | `http://localhost:5174` |
+| Platform admin | `http://localhost:5175/admin/login` |
+| Backend health | `http://127.0.0.1:8000/health` |
+| OpenAPI / Swagger UI | `http://127.0.0.1:8000/docs` |
+| ReDoc | `http://127.0.0.1:8000/redoc` |
 
-From the `backend` directory, activate the virtual environment and create an administrator using a strong password. This is a one-time setup for a new database:
+The first backend startup creates missing SQLAlchemy tables and performs additive compatibility changes for certain local SQLite databases. Database migrations are not documented as a production deployment workflow.
+
+### Bootstrap an Administrator
+
+From `backend/` with the backend environment active, set a strong, unique password and create the first administrator:
 
 ```powershell
 $env:ADMIN_EMAIL = "admin@example.com"
-$env:ADMIN_PASSWORD = "use-a-unique-password-at-least-12-characters"
+$env:ADMIN_PASSWORD = "replace-with-a-unique-password-of-at-least-12-characters"
 python -m scripts.bootstrap_admin
 ```
 
-Then sign in to the platform-admin portal at `http://localhost:5175/admin/login`. Open **Service Centers** to register each location. Include one supported vehicle make in each center's name (for example, `Toyota Kochi Service Center`); that make is mapped automatically for claim routing. Enter its city and state, then issue a staff invitation code. Share the code securely with that center's staff so they can register under the correct organization.
+Then sign in at `http://localhost:5175/admin/login`. Register a service center from the admin portal. The current workflow infers the supported vehicle make from the center name, so include one supported make in the name, for example `Toyota Kochi Service Center`. Generate an invitation code for staff registration. The current supported makes are Maruti Suzuki, Hyundai, Tata Motors, Mahindra, Toyota, and Kia.
 
-For multiple locations supporting the same make, configure distinct states or cities. Claims without a unique coverage match are rejected with an explanation until the coverage configuration is corrected. When a center is added or updated, previously unassigned claims are routed if there is now a unique match.
+### Build the Policy Knowledge Base
 
-### Computer-vision model files
-
-Place compatible model weights at these paths, or override the paths in `backend/.env`:
-
-```text
-backend/models/damage/best.pt
-backend/models/parts/parts.pt
-backend/models/severity/best.pt   # optional
-```
-
-Model weights are excluded from Git. Obtain them from the project's authorized model source; they are not generated by starting the API.
-
-## Build the policy knowledge base
-
-The RAG pipeline expects source PDF files in the repository-root `data/` folder. The policy corpus is excluded from Git, so a fresh clone must be supplied with the authorized policy PDFs before building the index. Create the local folders if needed:
+Place policy PDFs that you are authorized to use in the repository-root `data/` directory. From `backend/`, with the backend environment active, run the ingestion scripts in order:
 
 ```powershell
-New-Item -ItemType Directory -Force data, processed | Out-Null
-```
-
-From the repository root, activate the backend virtual environment and run the pipeline in order:
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
 python -m rag_pipeline.scripts.extract_text
 python -m rag_pipeline.scripts.clean_text
 python -m rag_pipeline.scripts.chunk_text
 python -m rag_pipeline.scripts.build_vector_db
 ```
 
-The scripts read PDFs under `data/`, then create:
+The scripts write extracted text, cleaned documents, chunk JSON, and the ChromaDB index under repository-root `processed/`. Re-run the full sequence after adding or replacing source PDFs. This build replaces the existing Chroma collection; retain source PDFs and any needed backups before rebuilding.
 
-```text
-processed/
-├── text/       # extracted text with page markers
-├── cleaned/    # normalized text
-├── chunks/     # per-document and combined chunk JSON
-└── vector_db/  # persistent ChromaDB collection
-```
-
-These generated files are local and excluded from Git. Rebuild the index after adding or replacing policy documents. The website's assistant uses this same RAG pipeline through the main backend; the Groq API key is needed for generated answers.
-
-### Optional standalone RAG API
-
-For direct retrieval/chat development, the RAG scripts also provide a separate FastAPI app. From `backend/` with the backend virtual environment active:
+The standalone RAG API is optional. The main website uses the backend chatbot endpoint. To run the standalone service from `backend/`:
 
 ```powershell
-uvicorn rag_pipeline.scripts.app:app --reload --host 127.0.0.1 --port 8100
+python -m uvicorn rag_pipeline.scripts.app:app --reload --host 127.0.0.1 --port 8100
 ```
 
-The standalone service exposes `/health`, `/companies`, `/search`, and `/chat`. It is optional for the main website, which calls RAG through the backend's `/api/v1/chatbot/chat` endpoint.
+## Usage
 
-## Useful URLs
+### Sign In
 
-- Customer frontend: `http://localhost:5173`
-- Service-center frontend: `http://localhost:5174`
-- Platform-admin frontend: `http://localhost:5175/admin/login`
-- Backend health: `http://127.0.0.1:8000/health`
-- Interactive backend API docs: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-- Optional standalone RAG health: `http://127.0.0.1:8100/health`
+The login endpoint accepts a portal value so the backend can enforce role-specific access. Use an account that has already been registered for the requested portal.
 
-## API overview
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"customer@example.com","password":"YOUR_PASSWORD","portal":"customer"}'
+```
 
-The backend API prefix is `/api/v1`.
+Example response shape:
 
-| Area | Prefix | Purpose |
+```json
+{
+  "access_token": "<JWT access token>",
+  "token_type": "bearer"
+}
+```
+
+Use `portal: "service_center"` for service-center staff and `portal: "admin"` for the platform-admin portal.
+
+### Ask the Policy Assistant
+
+Send the access token as a bearer token. Select the insurer to constrain the answer to that insurer's policy documents.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/chatbot/chat" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What documents are needed for a claim?","session_id":"default","company":"ICICI Lombard General Insurance Company Limited"}'
+```
+
+Example response shape:
+
+```json
+{
+  "response": "<answer based on available policy passages>",
+  "session_id": "default",
+  "sources": ["<insurer>: <document> (pp. <start>-<end>)"]
+}
+```
+
+Answers depend on the local policy index and Groq configuration. Treat the result as informational, verify cited policy language, and do not use it as a claim-coverage decision.
+
+## API Reference
+
+The main backend API uses the `/api/v1` prefix. The interactive OpenAPI documentation at `/docs` is the source of truth for request schemas and response models.
+
+| Area | Methods and paths | Access / purpose |
 | --- | --- | --- |
-| Authentication | `/auth` | Registration and role-specific login |
-| User profile | `/users` | Current user profile and profile updates |
-| Vehicles | `/vehicles` | Customer vehicle records |
-| Claims | `/claims` | Customer claim submission and retrieval |
-| Assessments | `/assessments` | AI assessments and claim-package generation |
-| Documents | `/documents` | Evidence and uploaded documents |
-| Chatbot | `/chatbot` | Policy RAG assistant |
-| Service center | `/service-center` | Queue, claim intake, technician review, estimates, and package operations |
+| Authentication | `POST /auth/register`, `POST /auth/login`, `POST /auth/token` | Register and log in; portal role is enforced where supplied |
+| Current user | `GET /users/me`, `PATCH /users/me` | Read and update the authenticated profile |
+| Vehicles | `GET /vehicles`, `POST /vehicles`, `PATCH /vehicles/{vehicle_id}`, `DELETE /vehicles/{vehicle_id}` | Customer vehicle management |
+| Claims | `GET /claims`, `POST /claims`, `GET /claims/{claim_id}` | Submit and access the current user's claims |
+| Claim artifacts | `GET /claims/{claim_id}/package/pdf`, `GET /claims/{claim_id}/package/zip` | Download generated claim-package files |
+| Evidence | `POST /documents/claims/{claim_id}/evidence` | Upload claim evidence |
+| Assessment | `GET /assessments/health`, `POST /assessments/{claim_id}/run`, `GET /assessments/{claim_id}`, `POST /assessments/{claim_id}/generate-package` | Run/retrieve assessment and generate package |
+| Assistant | `GET /chatbot/health`, `POST /chatbot/chat` | Policy RAG assistant |
+| Service-center operations | `GET /service-center/health`, `GET /service-center/dashboard`, `GET /service-center/claims`, `GET /service-center/claims/{claim_id}` | Center dashboard and claim review |
+| Service-center operations | `PATCH /service-center/claims/{claim_id}/status`, `POST /service-center/claims/{claim_id}/assign`, `POST /service-center/claims/{claim_id}/evidence`, `DELETE /service-center/claims/{claim_id}/evidence/vehicle-damage`, `POST /service-center/claims/{claim_id}/technician-review`, `POST /service-center/claims/{claim_id}/repair-estimate` | Service-center claim workflow |
+| Center management | `GET /service-centers/options`, `GET /service-centers`, `POST /service-centers`, `PATCH /service-centers/{center_id}`, `POST /service-centers/{center_id}/members`, `POST /service-centers/{center_id}/invite-code` | Public active-center options and administrator center/staff management |
 
-The service-center endpoints enforce service-center/admin roles. The frontend also isolates the customer and service-center portal by local host and passes the selected portal during login.
+Prefix the paths above with `http://127.0.0.1:8000/api/v1`. Most operations require `Authorization: Bearer <token>`; access also depends on user role and claim ownership/assignment rules.
 
-## Tests and code checks
+The optional standalone RAG API on port 8100 provides `GET /health`, `GET /companies`, `POST /search`, and `POST /chat`. Its API schemas are visible at `http://127.0.0.1:8100/docs` while it is running.
 
-Run the backend tests from `backend/` with the backend environment active:
+## Testing
+
+Run backend tests from `backend/` with its virtual environment active:
 
 ```powershell
 python -m pytest
 ```
 
-Run frontend checks from `frontend/`:
+Run frontend lint and production compilation from `frontend/`:
 
 ```powershell
 npm run lint
 npm run build
 ```
 
-## Project layout
+The RAG smoke benchmark runs from `backend/` after building the local policy index:
 
-```text
-.
-├── backend/
-│   ├── app/
-│   │   ├── ai/                 # Model loading and inference services
-│   │   ├── api/v1/endpoints/   # FastAPI route handlers
-│   │   ├── core/               # Settings, security, and exceptions
-│   │   ├── db/                 # SQLAlchemy database and models
-│   │   ├── rag/                # RAG integration modules
-│   │   └── services/           # Auth, claims, assessment, and package logic
-│   ├── rag_pipeline/
-│   │   └── scripts/            # PDF processing, indexing, retrieval, and RAG API
-│   ├── tests/                  # Backend pytest suite
-│   ├── main.py                 # Backend development entry point
-│   └── requirements.txt
-├── data/                       # Local policy PDFs; ignored by Git
-├── frontend/
-│   ├── src/                    # Customer and service-center React portals
-│   └── package.json
-├── inference/                  # Reusable vehicle inference utilities
-├── metadata/                   # Document metadata
-├── notebooks/                  # Model training and pipeline experiments
-├── processed/                  # Generated RAG text, chunks, and vector database
-└── uploads/                    # Local claim evidence uploads
+```powershell
+python -m rag_pipeline.scripts.evaluate_retrieval
+python -m rag_pipeline.scripts.evaluate_retrieval --per-company
 ```
 
-## Local data and Git
+The current retrieval benchmark has ten hand-written questions and uses expected-keyword hits in retrieved passages. A recorded run achieved 10/10 pooled keyword hits against 1,043 chunks across 11 insurers; this is not an answer-accuracy or hallucination metric. See [`MODEL_EVALUATION.md`](MODEL_EVALUATION.md) for computer-vision validation evidence and limitations. The repository does not contain the original labeled vision datasets needed to reproduce those notebook metrics.
 
-The `.gitignore` excludes local secrets, Python and Node environments, model weights, databases, uploaded evidence, generated claim packages, policy PDFs in `data/`, and generated RAG artifacts in `processed/`. This keeps private documents, user uploads, and large generated/model files out of normal commits.
+## Deployment
 
-As a result, cloning the repository does **not** provide the policy PDFs, model weights, uploaded files, database, or vector index. Keep backups of local policy documents and model files, and supply them locally when setting up a new clone. Do not force-add customer evidence, credentials, or private policy material to a public repository.
+The repository currently documents local development only. No Dockerfile, Docker Compose configuration, CI workflow, or supported cloud deployment manifest is present. **Production deployment steps are TODO.** Do not expose the current development configuration to public users without a security and operations review.
 
-## Troubleshooting
+Before deployment, define the supported hosting environment, secret management, database service and migration process, private file storage, HTTPS and proxy configuration, CORS allowlist, model-weight delivery, RAG corpus/index build process, monitoring, backup/restore, and CI/CD workflow. Replace the development JWT key and review debug mode, file serving, role/tenant access, and data-retention behavior before handling real customer documents.
 
-### Frontend reports that a port is already in use
+## Roadmap
 
-The scripts use fixed ports. Stop the process currently using the requested port, then rerun the command. `--strictPort` prevents Vite from silently moving a portal to another port and changing which portal it displays.
+These are planned improvements, not claims about current functionality. See [`upgrades/POTENTIAL_DEVELOPMENTS.md`](upgrades/POTENTIAL_DEVELOPMENTS.md) for the longer planning document.
 
-### Frontend cannot reach the backend
+- Add a versioned, insurer-specific RAG benchmark with Recall@k, MRR, answer faithfulness, citation correctness, and attribution review.
+- Evaluate deployed vision weights on documented held-out datasets; publish class support, confusion matrices, and reproducible metrics.
+- Create a labeled severity and damage-to-part dataset to evaluate severity classification and fusion behavior.
+- Move schema changes into reviewed database migrations and document production database operations.
+- Strengthen private evidence and artifact access, tenant isolation, audit logging, and account/session controls.
+- Add background processing, health/readiness checks, monitoring, and tested backup/restore procedures.
+- Add a documented container or cloud deployment and automated CI after choosing a supported target.
 
-Confirm the backend is running on port 8000. The frontend API client currently uses `http://127.0.0.1:8000/api/v1` in `frontend/src/api.ts`. The backend CORS configuration includes the two local frontend origins by default.
+## Contributing
 
-### RAG reports that the knowledge base or collection is missing
+Contributions are welcome. No formal repository contribution policy is currently present. Until one is added, use this suggested workflow:
 
-Confirm the policy PDFs exist under root `data/`, install dependencies from `backend/requirements.txt`, then rerun the four knowledge-base build commands in order. The RAG scripts require both `data/` and `processed/` directories at the repository root.
+1. Create a focused branch from `main`, such as `feat/<short-name>`, `fix/<short-name>`, or `docs/<short-name>`.
+2. Keep each pull request scoped to one change and explain the user impact, implementation, and any configuration or data migration requirements.
+3. Use a Conventional Commit-style subject where practical: `feat:`, `fix:`, `docs:`, `refactor:`, or `test:`.
+4. Do not commit `.env` files, credentials, customer uploads, policy PDFs, generated databases, vector indexes, or model weights.
 
-### The assistant returns retrieved text instead of a generated answer
+Before opening a pull request:
 
-Set a valid `GROQ_API_KEY` in `backend/.env`, restart the backend, and check `http://127.0.0.1:8000/health` and the backend logs. Retrieval can still work without Groq, but generated answers require Groq access.
+- [ ] Run the relevant backend tests and/or frontend lint/build commands.
+- [ ] Update documentation and example configuration for behavior changes.
+- [ ] Include or update tests for changed behavior where appropriate.
+- [ ] Check that secrets, personal data, generated artifacts, and large model/data files are not staged.
+- [ ] Describe known limitations and include screenshots for user-facing UI changes.
 
-### AI damage assessment reports missing model weights
+## Troubleshooting and FAQ
 
-Check that the damage and parts `.pt` files exist at the configured model paths. The backend can start without them, but inference cannot run until compatible weights are supplied.
+### A frontend port is already in use
 
-### Uploaded files or data are not visible in Git status
+Each portal has a fixed port and Vite uses `--strictPort`. Stop the process using that port, then restart the portal. The application uses the port to select the default portal mode.
 
-The `data/`, `uploads/`, and generated directories are intentionally ignored. Git ignore rules do not prevent the application from reading local files; they only keep those paths out of ordinary Git staging.
+### The frontend cannot reach the backend
+
+Confirm the API is running at `http://127.0.0.1:8000`. The frontend API client defaults to `http://127.0.0.1:8000/api/v1`; override it with `VITE_API_BASE_URL` if needed. Confirm the frontend origin is listed in backend `CORS_ORIGINS` and restart the backend after changing settings.
+
+### RAG reports that ChromaDB or the embedding model is missing
+
+Activate the backend virtual environment and install `backend/requirements.txt`. Confirm policy PDFs are under repository-root `data/`, then run extraction, cleaning, chunking, and vector-database build commands in order. The first embedding-model use may need internet access to download `all-MiniLM-L6-v2`.
+
+### The assistant returns policy excerpts instead of a generated answer
+
+Check that `GROQ_API_KEY` is set in a backend-readable `.env`, that the key and configured model are valid, and that the backend was restarted. Retrieval may still return passages when Groq is unavailable.
+
+### AI assessment reports missing model weights
+
+Place compatible weights at the configured `DAMAGE_MODEL_PATH` and `PARTS_MODEL_PATH`. The default paths are under `backend/models/`. Severity weights are optional; the application can use heuristic severity logic when they are unavailable. Weights are not included in this repository.
+
+### A freshly cloned repository has no local policies, weights, uploads, or database
+
+These inputs/artifacts are intentionally ignored by Git. Restore authorized source policy files and model weights from their approved source; the user database, uploaded evidence, generated packages, and vector index must be supplied or recreated for local use. Do not force-add private data to a public repository.
+
+### Is the AI repair amount an insurer quotation?
+
+No. The code and report distinguish technician-entered workshop estimates from rule-based indicative estimates. Indicative rates are not verified quotes or settlement values; a qualified technician, surveyor, and insurer determine the applicable estimate and decision.
 
 ## License
 
-See [LICENSE](LICENSE).
+This project is licensed under the [MIT License](LICENSE). The copyright notice is included in the license file.
+
+## Contact and Acknowledgements
+
+- Maintainer: **TODO: add maintainer name or organization**
+- Contact: **TODO: add project email or preferred contact method**
+- LinkedIn or project profile: **TODO: add URL, if applicable**
+- Repository: [Devadeth-cmyk/vehicle-damage-insurance-assistance](https://github.com/Devadeth-cmyk/vehicle-damage-insurance-assistance)
+
+The project uses open-source components listed in `frontend/package.json` and `backend/requirements.txt`. Add acknowledgements and attribution for the specific datasets, pretrained weights, policy documents, and model sources before redistributing the project or its outputs.
