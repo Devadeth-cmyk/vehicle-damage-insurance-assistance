@@ -69,6 +69,7 @@ def main() -> None:
     data = json.loads((Path(__file__).resolve().parent / "model_metrics.json").read_text(encoding="utf-8"))
     damage = data["damage_detection"]
     parts = data["part_segmentation"]
+    rag = data["rag_retrieval"]
 
     lines = svg_start(420, "Recorded validation metrics", "Two distinct computer-vision tasks • values are mAP on the notebook validation splits")
     groups = [
@@ -104,6 +105,18 @@ def main() -> None:
         f"Validation: {parts['validation_images']} images, {parts['validation_instances']} labeled instances • class sample counts vary",
         [(c["name"], c["mask_map50_95"]) for c in sorted(parts["classes"], key=lambda x: x["mask_map50_95"])],
         PURPLE,
+    )
+    rag_rows = [
+        (q["question"], q["best_similarity"])
+        for q in rag["queries"]
+        if q.get("best_similarity") is not None
+    ]
+    bar_chart(
+        "rag_top1_similarity.svg",
+        f"RAG retrieval · top result similarity ({rag['hits']}/{rag['questions']} keyword hits)",
+        f"Pooled index: {rag['index_chunks']:,} chunks across {rag['indexed_insurers']} insurers • general exclusions uses section matching",
+        sorted(rag_rows, key=lambda row: row[1]),
+        TEAL,
     )
     print(f"Wrote SVG charts to {OUT}")
 

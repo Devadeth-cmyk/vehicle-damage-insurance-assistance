@@ -1,56 +1,111 @@
 {
   "provenance": {
     "status": "transcribed_from_saved_notebook_validation_outputs",
-    "warning": "These are validation metrics recorded in notebooks, not a newly executed independent holdout test. The original datasets and prediction artifacts are not present in this repository, so the values could not be independently reproduced here.",
-    "damage_detection_source": "notebooks/damage_detection_training.ipynb, cell 17 output",
-    "damage_detection_runtime": "Ultralytics 8.4.150, Python 3.13.15, CUDA Tesla T4",
-    "parts_segmentation_source": "notebooks/vehicle_parts_training.ipynb, cell 13 output",
-    "parts_segmentation_runtime": "Ultralytics 8.4.157, Python 3.13.15, CUDA Tesla T4",
+    "warning": "These are validation and held-out test metrics recorded from YOLO26m-seg training runs in notebooks. The original datasets are hosted on Kaggle / external sources.",
+    "damage_detection_source": "notebooks/car-damage.ipynb, cell 16 and cell 19 output",
+    "damage_detection_runtime": "Ultralytics 8.4.184, Python 3.13.15, CUDA Tesla T4 x2 (Kaggle)",
+    "damage_model": "YOLO26m-seg (damage_seg_kaggle_20261023_1902, 143 epochs)",
+    "parts_segmentation_source": "notebooks/car-parts-training.ipynb, cell 14 output",
+    "parts_segmentation_runtime": "Ultralytics 8.4.184, Python 3.13.15, CUDA Tesla T4 x2 (Kaggle)",
+    "parts_model": "YOLO26m-seg (parts_seg_kaggle_20261023_1859, 145 epochs)",
     "severity_note": "notebooks/damage_severity_estimation.ipynb trains/evaluates the same six damage categories and its severity calculation is area-threshold heuristic code. It does not provide validated Minor/Moderate/Severe classification metrics."
   },
   "damage_detection": {
-    "task": "Bounding-box damage detection",
+    "task": "Bounding-box and instance segmentation damage detection (YOLO26m-seg)",
     "validation_images": 810,
     "validation_instances": 1744,
-    "overall": {"precision": 0.749, "recall": 0.666, "map50": 0.709, "map50_95": 0.554},
+    "test_images": 374,
+    "test_instances": 785,
+    "overall": {
+      "precision": 0.831,
+      "recall": 0.726,
+      "map50": 0.789,
+      "map50_95": 0.614,
+      "mask_precision": 0.838,
+      "mask_recall": 0.730,
+      "mask_map50": 0.783,
+      "mask_map50_95": 0.599
+    },
     "classes": [
-      {"name": "dent", "precision": 0.673, "recall": 0.491, "map50": 0.554, "map50_95": 0.312},
-      {"name": "scratch", "precision": 0.633, "recall": 0.484, "map50": 0.541, "map50_95": 0.300},
-      {"name": "crack", "precision": 0.530, "recall": 0.305, "map50": 0.347, "map50_95": 0.172},
-      {"name": "glass shatter", "precision": 0.968, "recall": 0.978, "map50": 0.992, "map50_95": 0.929},
-      {"name": "lamp broken", "precision": 0.804, "recall": 0.837, "map50": 0.872, "map50_95": 0.727},
-      {"name": "tire flat", "precision": 0.888, "recall": 0.903, "map50": 0.950, "map50_95": 0.887}
-    ]
+      {"name": "dent", "precision": 0.767, "recall": 0.539, "map50": 0.636, "map50_95": 0.360, "mask_map50_95": 0.330},
+      {"name": "scratch", "precision": 0.684, "recall": 0.556, "map50": 0.631, "map50_95": 0.368, "mask_map50_95": 0.325},
+      {"name": "crack", "precision": 0.639, "recall": 0.540, "map50": 0.579, "map50_95": 0.327, "mask_map50_95": 0.254},
+      {"name": "glass shatter", "precision": 1.000, "recall": 0.979, "map50": 0.995, "map50_95": 0.919, "mask_map50_95": 0.954},
+      {"name": "lamp broken", "precision": 0.957, "recall": 0.837, "map50": 0.924, "map50_95": 0.798, "mask_map50_95": 0.800},
+      {"name": "tire flat", "precision": 0.941, "recall": 0.903, "map50": 0.970, "map50_95": 0.913, "mask_map50_95": 0.927}
+    ],
+    "test_split": {
+      "overall": {
+        "box_precision": 0.792,
+        "box_recall": 0.723,
+        "box_map50": 0.763,
+        "box_map50_95": 0.594,
+        "mask_precision": 0.797,
+        "mask_recall": 0.722,
+        "mask_map50": 0.760,
+        "mask_map50_95": 0.574
+      },
+      "classes": [
+        {"name": "dent", "precision": 0.661, "recall": 0.588, "map50": 0.624, "map50_95": 0.373},
+        {"name": "scratch", "precision": 0.699, "recall": 0.603, "map50": 0.651, "map50_95": 0.373},
+        {"name": "crack", "precision": 0.573, "recall": 0.514, "map50": 0.519, "map50_95": 0.304},
+        {"name": "glass shatter", "precision": 0.969, "recall": 0.986, "map50": 0.993, "map50_95": 0.917},
+        {"name": "lamp broken", "precision": 0.933, "recall": 0.807, "map50": 0.887, "map50_95": 0.728},
+        {"name": "tire flat", "precision": 0.915, "recall": 0.844, "map50": 0.906, "map50_95": 0.866}
+      ]
+    }
   },
   "part_segmentation": {
-    "task": "Vehicle-part instance segmentation",
+    "task": "Vehicle-part instance segmentation (YOLO26m-seg, 13 classes)",
     "validation_images": 401,
-    "validation_instances": 2042,
-    "overall": {"box_precision": 0.608, "box_recall": 0.786, "box_map50": 0.685, "box_map50_95": 0.572, "mask_precision": 0.616, "mask_recall": 0.794, "mask_map50": 0.697, "mask_map50_95": 0.558},
+    "validation_instances": 2041,
+    "overall": {
+      "box_precision": 0.843,
+      "box_recall": 0.847,
+      "box_map50": 0.881,
+      "box_map50_95": 0.772,
+      "mask_precision": 0.863,
+      "mask_recall": 0.855,
+      "mask_map50": 0.904,
+      "mask_map50_95": 0.767
+    },
     "classes": [
-      {"name": "back_bumper", "mask_map50_95": 0.743},
-      {"name": "back_door", "mask_map50_95": 0.801},
-      {"name": "back_glass", "mask_map50_95": 0.807},
-      {"name": "back_left_door", "mask_map50_95": 0.637},
-      {"name": "back_left_light", "mask_map50_95": 0.368},
-      {"name": "back_light", "mask_map50_95": 0.632},
-      {"name": "back_right_door", "mask_map50_95": 0.453},
-      {"name": "back_right_light", "mask_map50_95": 0.376},
-      {"name": "front_bumper", "mask_map50_95": 0.884},
-      {"name": "front_door", "mask_map50_95": 0.818},
-      {"name": "front_glass", "mask_map50_95": 0.917},
-      {"name": "front_left_door", "mask_map50_95": 0.548},
-      {"name": "front_left_light", "mask_map50_95": 0.470},
-      {"name": "front_light", "mask_map50_95": 0.665},
-      {"name": "front_right_door", "mask_map50_95": 0.345},
-      {"name": "front_right_light", "mask_map50_95": 0.341},
-      {"name": "hood", "mask_map50_95": 0.884},
-      {"name": "left_mirror", "mask_map50_95": 0.345},
-      {"name": "object", "mask_map50_95": 0.000},
-      {"name": "right_mirror", "mask_map50_95": 0.436},
-      {"name": "tailgate", "mask_map50_95": 0.538},
-      {"name": "trunk", "mask_map50_95": 0.569},
-      {"name": "wheel", "mask_map50_95": 0.255}
+      {"name": "back_bumper", "precision": 0.921, "recall": 0.904, "mask_map50": 0.966, "mask_map50_95": 0.817, "box_map50_95": 0.813},
+      {"name": "back_door", "precision": 0.923, "recall": 0.835, "mask_map50": 0.943, "mask_map50_95": 0.862, "box_map50_95": 0.874},
+      {"name": "back_glass", "precision": 0.953, "recall": 0.974, "mask_map50": 0.981, "mask_map50_95": 0.878, "box_map50_95": 0.894},
+      {"name": "back_light", "precision": 0.910, "recall": 0.857, "mask_map50": 0.924, "mask_map50_95": 0.708, "box_map50_95": 0.731},
+      {"name": "front_bumper", "precision": 0.931, "recall": 0.962, "mask_map50": 0.974, "mask_map50_95": 0.918, "box_map50_95": 0.902},
+      {"name": "front_door", "precision": 0.900, "recall": 0.876, "mask_map50": 0.930, "mask_map50_95": 0.851, "box_map50_95": 0.868},
+      {"name": "front_glass", "precision": 0.958, "recall": 0.968, "mask_map50": 0.986, "mask_map50_95": 0.948, "box_map50_95": 0.945},
+      {"name": "front_light", "precision": 0.944, "recall": 0.904, "mask_map50": 0.941, "mask_map50_95": 0.733, "box_map50_95": 0.757},
+      {"name": "hood", "precision": 0.953, "recall": 0.950, "mask_map50": 0.972, "mask_map50_95": 0.923, "box_map50_95": 0.910},
+      {"name": "mirror", "precision": 0.931, "recall": 0.919, "mask_map50": 0.976, "mask_map50_95": 0.691, "box_map50_95": 0.687},
+      {"name": "tailgate", "precision": 0.571, "recall": 0.600, "mask_map50": 0.736, "mask_map50_95": 0.616, "box_map50_95": 0.543},
+      {"name": "trunk", "precision": 0.621, "recall": 0.778, "mask_map50": 0.771, "mask_map50_95": 0.687, "box_map50_95": 0.744},
+      {"name": "wheel", "precision": 0.704, "recall": 0.582, "mask_map50": 0.655, "mask_map50_95": 0.338, "box_map50_95": 0.369}
+    ]
+  },
+  "rag_retrieval": {
+    "task": "Top-k retrieval keyword-hit benchmark (not generated-answer evaluation)",
+    "questions": 10,
+    "hits": 10,
+    "hit_rate": 1.0,
+    "index_chunks": 1043,
+    "indexed_insurers": 11,
+    "scope": "All companies pooled; no insurer filter",
+    "provenance": "Transcribed from the user-provided terminal run after the full PDF ingestion and vector-index build.",
+    "method_limit": "A question counts as a hit when any expected keyword is present in the retrieved top-k text. This does not establish that the passage answers the question or that the Groq-generated answer is correct.",
+    "queries": [
+      {"question": "Own-damage cover", "hit": true, "best_similarity": 0.647},
+      {"question": "Owner-driver personal accident cover", "hit": true, "best_similarity": 0.692},
+      {"question": "General exclusions", "hit": true, "best_similarity": null, "retrieval_mode": "section match"},
+      {"question": "Zero depreciation", "hit": true, "best_similarity": 0.563},
+      {"question": "Roadside assistance", "hit": true, "best_similarity": 0.447},
+      {"question": "Claim procedure", "hit": true, "best_similarity": 0.632},
+      {"question": "Documents required for a claim", "hit": true, "best_similarity": 0.569},
+      {"question": "Engine damage coverage", "hit": true, "best_similarity": 0.687},
+      {"question": "Voluntary deductible", "hit": true, "best_similarity": 0.638},
+      {"question": "Total loss", "hit": true, "best_similarity": 0.570}
     ]
   }
 }

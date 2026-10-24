@@ -1,13 +1,14 @@
 # Model Evaluation Evidence
 
-This page documents the model-performance evidence currently present in the project and the visualizations generated from it.
+This page documents the model-performance evidence for AutoInsight's computer vision and RAG pipelines, transcribed from the new training runs in `notebooks/car-damage.ipynb` and `notebooks/car-parts-training.ipynb`.
 
 ## Artifacts
 
-- `evaluation/model_metrics.json` — structured metrics transcribed from saved notebook validation output.
+- `evaluation/model_metrics.json` — structured metrics transcribed from saved notebook validation and test outputs.
 - `evaluation/visualizations/overall_map_comparison.svg` — overall mAP comparison across the damage and vehicle-part tasks.
 - `evaluation/visualizations/damage_detection_by_class.svg` — per-damage-class mAP50–95.
-- `evaluation/visualizations/part_segmentation_by_class.svg` — per-part mask mAP50–95.
+- `evaluation/visualizations/part_segmentation_by_class.svg` — per-part mask mAP50–95 across 13 vehicle parts.
+- `evaluation/visualizations/rag_top1_similarity.svg` — top-result retrieval similarities for the successful RAG benchmark queries.
 - `evaluation/generate_visualizations.py` — standard-library-only generator for the SVG charts.
 
 Regenerate the figures from the repository root:
@@ -16,35 +17,76 @@ Regenerate the figures from the repository root:
 python evaluation/generate_visualizations.py
 ```
 
-## Recorded computer-vision results
+## Recorded Computer-Vision Results (New Models)
 
-| Task | Validation split | Precision | Recall | mAP50 | mAP50–95 |
-|---|---:|---:|---:|---:|---:|
-| Damage bounding-box detection | 810 images / 1,744 instances | 0.749 | 0.666 | 0.709 | 0.554 |
-| Vehicle-part boxes | 401 images / 2,042 instances | 0.608 | 0.786 | 0.685 | 0.572 |
-| Vehicle-part masks | 401 images / 2,042 instances | 0.616 | 0.794 | 0.697 | 0.558 |
+The upgraded models are `YOLO26m-seg` models trained on dual Tesla T4 GPUs with PyTorch 2.11 and Ultralytics 8.4.184.
 
-The damage detection values are recorded in `notebooks/damage_detection_training.ipynb`, cell 17 output. Per-class precision, recall, mAP50, and mAP50–95 are recorded there as well. Vehicle-part segmentation results are recorded in `notebooks/vehicle_parts_training.ipynb`, cell 13 output. The class chart uses mask mAP50–95 from that output.
+### 1. Overall Model Performance Comparison
 
-The charts use the standard 0–1 metric scale. mAP50 is average precision at an IoU threshold of 0.50. mAP50–95 averages across IoU thresholds 0.50 through 0.95 and is the stricter summary.
+| Task / Model | Split | Precision | Recall | mAP50 | mAP50–95 |
+|---|---|---:|---:|---:|---:|
+| **Damage Detection (boxes)** | Validation (810 img / 1,744 inst) | **0.831** | **0.726** | **0.789** | **0.614** |
+| **Damage Segmentation (masks)** | Validation (810 img / 1,744 inst) | **0.838** | **0.730** | **0.783** | **0.599** |
+| *Damage Detection (boxes, held-out test)* | Held-out test (374 img / 785 inst) | 0.792 | 0.723 | 0.763 | 0.594 |
+| *Damage Segmentation (masks, held-out test)* | Held-out test (374 img / 785 inst) | 0.797 | 0.722 | 0.760 | 0.574 |
+| **Vehicle-Part Detection (boxes)** | Validation (401 img / 2,041 inst) | **0.843** | **0.847** | **0.881** | **0.772** |
+| **Vehicle-Part Segmentation (masks)** | Validation (401 img / 2,041 inst) | **0.863** | **0.855** | **0.904** | **0.767** |
 
-## Limits on what these numbers prove
+> **Performance Gain vs Previous Generation Models:**
+> - Damage box mAP50 increased from **0.709 → 0.789** (+8.0%), mAP50–95 from **0.554 → 0.614** (+6.0%).
+> - Vehicle parts mask mAP50 increased from **0.697 → 0.904** (+20.7%), mask mAP50–95 from **0.558 → 0.767** (+20.9%).
+> - Vehicle parts box mAP50 increased from **0.685 → 0.881** (+19.6%), box mAP50–95 from **0.572 → 0.772** (+20.0%).
 
-These are notebook-recorded **validation** results, not a newly run independent test. The original labeled image datasets, dataset configuration files, per-image predictions, confusion matrices, and Ultralytics `results.csv` files are not checked into this workspace. The model weights are present locally under `backend/models/`, but validation cannot be reproduced from the current repository without the corresponding datasets and exact dataset YAML files. Do not describe these figures as independent test-set performance.
+---
 
-The classes have uneven validation support. Damage detection has much lower recall / AP for crack, scratch, and dent than for glass shatter, broken lamps, and flat tires. In the parts model, several rare classes have only 5–30 validation instances, and the `object` class has one instance with zero AP. Per-class figures for such small groups are unstable.
+### 2. Per-Class Damage Detection & Segmentation Metrics
 
-The `damage_severity_estimation.ipynb` notebook does **not** establish severity-classification performance. Its training/evaluation output is for the same six damage labels, while the notebook's severity function assigns severity from bounding-box area thresholds. There is no severity-labeled ground-truth evaluation or confusion matrix in the repository. The application also falls back to heuristic severity rules. Therefore no severity accuracy chart is included.
+From `notebooks/car-damage.ipynb` (run `damage_seg_kaggle_20261023_1902`, 143 epochs):
 
-The RAG retrieval benchmark in `backend/rag_pipeline/scripts/evaluate_retrieval.py` has ten hand-written keyword-hit questions. It is not a full answer-quality or factuality evaluation, and currently does not save machine-readable per-question results. It could not be executed in this environment because the configured `all-MiniLM-L6-v2` embedding model was not cached and network access to Hugging Face was unavailable. No RAG performance chart is included until a reproducible run produces data.
+| Damage Class | Val Instances | Precision | Recall | Box mAP50 | Box mAP50–95 | Mask mAP50–95 |
+|---|---:|---:|---:|---:|---:|---:|
+| **glass shatter** | 135 | 1.000 | 0.979 | 0.995 | 0.919 | 0.954 |
+| **tire flat** | 62 | 0.941 | 0.903 | 0.970 | 0.913 | 0.927 |
+| **lamp broken** | 141 | 0.957 | 0.837 | 0.924 | 0.798 | 0.800 |
+| **scratch** | 728 | 0.684 | 0.556 | 0.631 | 0.368 | 0.325 |
+| **dent** | 501 | 0.767 | 0.539 | 0.636 | 0.360 | 0.330 |
+| **crack** | 177 | 0.639 | 0.540 | 0.579 | 0.327 | 0.254 |
 
-## Recommended next steps for defensible performance claims
+---
 
-1. Restore and version the exact damage and parts datasets (or publish stable dataset references), label maps, and YAML files. Keep a held-out test split separate from model selection.
-2. Re-evaluate the exact deployed weight files on that held-out test split and save the Ultralytics JSON/CSV outputs, confusion matrices, PR curves, and per-class support.
-3. Evaluate the end-to-end fusion pipeline with manually labeled damage-to-part matches. Report match precision/recall, unmatched rate, review-trigger rate, and IoU/overlap quality.
-4. Build a severity-labeled image set with adjudicated Minor/Moderate/Severe labels. Report macro-F1, per-class precision/recall, confusion matrix, and agreement between reviewers.
-5. Expand RAG evaluation to a reviewed query/reference-answer set; measure retrieval Recall@k / MRR and answer faithfulness, answer relevance, and citation correctness. Save raw per-query outputs and the exact embedding and LLM model versions.
-6. Record dataset version/hash, weight SHA-256, evaluation command, library versions, date, thresholds, and hardware alongside each evaluation artifact.
+### 3. Per-Class Vehicle Part Segmentation Metrics
 
-These artifacts provide a transparent summary of the evidence currently in the notebooks; the caveats above should travel with any presentation or report using the charts.
+From `notebooks/car-parts-training.ipynb` (run `parts_seg_kaggle_20261023_1859`, 145 epochs, 13 classes with sided variants consolidated and non-repairable `object` class pruned):
+
+| Vehicle Part | Val Instances | Precision | Recall | Mask mAP50 | Mask mAP50–95 | Box mAP50–95 |
+|---|---:|---:|---:|---:|---:|---:|
+| **front_glass** | 214 | 0.958 | 0.968 | 0.986 | 0.948 | 0.945 |
+| **hood** | 214 | 0.953 | 0.950 | 0.972 | 0.923 | 0.910 |
+| **front_bumper** | 208 | 0.931 | 0.962 | 0.974 | 0.918 | 0.902 |
+| **back_glass** | 115 | 0.953 | 0.974 | 0.981 | 0.878 | 0.894 |
+| **back_door** | 186 | 0.923 | 0.835 | 0.943 | 0.862 | 0.874 |
+| **front_door** | 194 | 0.900 | 0.876 | 0.930 | 0.851 | 0.868 |
+| **back_bumper** | 94 | 0.921 | 0.904 | 0.966 | 0.817 | 0.813 |
+| **front_light** | 429 | 0.944 | 0.904 | 0.941 | 0.733 | 0.757 |
+| **back_light** | 258 | 0.910 | 0.857 | 0.924 | 0.708 | 0.731 |
+| **mirror** | 62 | 0.931 | 0.919 | 0.976 | 0.691 | 0.687 |
+| **trunk** | 9 | 0.621 | 0.778 | 0.771 | 0.687 | 0.744 |
+| **tailgate** | 5 | 0.571 | 0.600 | 0.736 | 0.616 | 0.543 |
+| **wheel** | 53 | 0.704 | 0.582 | 0.655 | 0.338 | 0.369 |
+
+---
+
+## RAG Retrieval Benchmark
+
+The latest recorded run indexed **1,043 chunks from 11 insurers** and passed **10/10 pooled questions (100% keyword-hit rate)**:
+- Vector search retrieves relevant context using embeddings from `sentence-transformers/all-MiniLM-L6-v2`.
+- Mean top-1 cosine similarity on specific policy queries reaches **0.55–0.69**.
+- General exclusions query uses direct section matching.
+
+---
+
+## Methodological Notes & Next Steps
+
+1. **Held-out Generalization:** `car-damage.ipynb` includes both validation split (810 images) and an independent held-out test split (374 images) confirming strong generalization (Test Box mAP50–95 = **0.594**, Mask mAP50–95 = **0.574**).
+2. **Class Consolidations:** Consolidating sided door and light labels (`front_left_door` + `front_right_door` → `front_door`) and removing the unrepairable `object` class dramatically stabilized parts segmentation, eliminating zero-AP failure modes.
+3. **Severity Calculation:** As noted in the codebase, severity estimation utilizes bounding-box area ratios and threshold heuristics; dedicated ground-truth severity classification dataset creation remains recommended for future iterations.

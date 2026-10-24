@@ -40,7 +40,13 @@ def run(company=None):
         text = " ".join(r["content"].lower() for r in results)
         ok = any(k in text for k in keywords)
         hits += ok
-        best = f"{results[0]['similarity']:.3f}" if results else "-"
+        # Direct section lookups (for example, GENERAL EXCEPTIONS) return
+        # similarity=None because they use metadata filtering, not vector
+        # ranking. Keep that valid result from crashing the benchmark output.
+        similarity = results[0].get("similarity") if results else None
+        best = f"{similarity:.3f}" if isinstance(similarity, (int, float)) else (
+            "section match" if results else "-"
+        )
         print(f"  {'PASS' if ok else 'FAIL'}  best_sim={best}  {question}")
     return hits
 
